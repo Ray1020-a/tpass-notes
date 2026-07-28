@@ -39,6 +39,10 @@ export default async function ReadPage({ searchParams }: { searchParams?: Promis
         <p className="mt-2 text-sm text-[oklch(0.5_0.012_264)]">作者：{note.owner_name} · 更新：{new Date(note.updated_at).toLocaleString("zh-TW")}</p>
       </div>
       <div className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
+        <div className="mb-4 rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.005_250)] p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-[oklch(0.46_0.15_250)]">版本資訊</h2>
+          <p className="mt-2 text-sm text-[oklch(0.5_0.012_264)]">本篇筆記目前共有 {versions.rows.length} 個版本，最新版本由 {latestVersion?.created_by_name || note.owner_name} 建立。</p>
+        </div>
         {note.content_type === "pdf" && latestVersion?.file_path ? (
           <iframe src={`/uploads/${latestVersion.file_path.split("/").pop()}`} className="min-h-[70vh] w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)]" />
         ) : (
