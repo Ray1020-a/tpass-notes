@@ -11,11 +11,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[oklch(0.99_0.002_250)] text-[oklch(0.21_0.01_264)]">
       <AccessGate restriction={permission.restriction} reason={permission.reason} />
       <header className="sticky top-0 z-50 border-b-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.99_0.002_250)]/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Link href="/" className="font-mono text-lg font-extrabold tracking-tight text-[oklch(0.21_0.01_264)]">
             T<span className="text-[oklch(0.62_0.16_150)]">-</span>Pass Notes
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {canManage(session) ? (
               <Link
                 href="/panel"

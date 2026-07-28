@@ -37,6 +37,14 @@ export default function EditorPage() {
   const [newCollaborator, setNewCollaborator] = useState("");
   const [newCollaboratorName, setNewCollaboratorName] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const updateViewport = () => setIsMobile(window.innerWidth < 768);
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -202,7 +210,12 @@ export default function EditorPage() {
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[oklch(0.5_0.012_264)]">
             <span>格式提示：# 標題、- 清單、**粗體**、```程式碼</span>
           </div>
-          {mode === "preview" ? (
+          {isMobile ? (
+            <div className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] p-5 text-sm text-[oklch(0.5_0.012_264)]">
+              <p className="font-semibold text-[oklch(0.21_0.01_264)]">手機版不支援 Markdown 直接編輯</p>
+              <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。您仍可查看版本、協作者與上傳 PDF。</p>
+            </div>
+          ) : mode === "preview" ? (
             <div className="min-h-[60vh] rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-4">
               <article className="prose prose-sm max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
