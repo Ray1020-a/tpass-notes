@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const bytes = Buffer.from(await file.arrayBuffer());
   await writeFile(destPath, bytes);
   await initDb();
-  const versionResult = await query<any>(`SELECT COUNT(*)::int AS count FROM note_versions WHERE note_id = $1`, [noteId]);
+  const versionResult = await query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM note_versions WHERE note_id = $1`, [noteId]);
   const version = versionResult.rows[0].count + 1;
   await query(`
     INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name)

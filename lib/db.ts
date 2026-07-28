@@ -2,6 +2,11 @@ import { mkdir } from "fs/promises";
 import path from "path";
 import { Pool } from "pg";
 
+interface DbQueryResult<T> {
+  rows: T[];
+  rowCount: number;
+}
+
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL || "postgresql://postgres:postgres@127.0.0.1:5432/t_notes",
 });
@@ -90,10 +95,10 @@ export async function initDb() {
   }
 }
 
-export async function query<T = any>(text: string, params?: any[]) {
+export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]) {
   await initDb();
   const result = await pool.query(text, params);
-  return result as { rows: T[]; rowCount: number };
+  return result as DbQueryResult<T>;
 }
 
 export { pool };

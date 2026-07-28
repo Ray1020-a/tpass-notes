@@ -7,9 +7,30 @@ import { initDb, query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+type NoteRow = {
+  id: number;
+  title: string;
+  owner_name: string;
+  owner_email: string;
+  updated_at: string;
+  published: boolean;
+  content_type: string;
+  latest_content: string;
+};
+
+type VersionRow = {
+  version_number: number;
+  content: string;
+  file_path?: string;
+  file_size?: number;
+  mime_type?: string;
+  created_at: string;
+  created_by_name: string;
+};
+
 async function getNote(id: number) {
   await initDb();
-  const result = await query<any>(`SELECT * FROM notes WHERE id = $1`, [id]);
+  const result = await query<NoteRow>(`SELECT * FROM notes WHERE id = $1`, [id]);
   if (result.rows.length === 0) return null;
   return result.rows[0];
 }
@@ -26,7 +47,7 @@ export default async function ReadPage({ searchParams }: { searchParams?: Promis
   const note = await getNote(Number(idValue));
   if (!note || !note.published) notFound();
 
-  const versions = await query<any>(`SELECT * FROM note_versions WHERE note_id = $1 ORDER BY version_number DESC, created_at DESC`, [note.id]);
+  const versions = await query<VersionRow>(`SELECT * FROM note_versions WHERE note_id = $1 ORDER BY version_number DESC, created_at DESC`, [note.id]);
   const latestVersion = versions.rows[0];
 
   return (

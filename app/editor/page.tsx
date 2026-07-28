@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -61,26 +61,7 @@ export default function EditorPage() {
     load();
   }, [id]);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      if (!id) return;
-      void saveContent(true);
-    }, 60000);
-    return () => window.clearInterval(interval);
-  }, [content, id, title, published]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        void saveContent(false);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [content, id, title, published]);
-
-  const saveContent = async (silent = false) => {
+  const saveContent = useCallback(async (silent = false) => {
     if (!id) return;
     setSaving(true);
     try {
@@ -99,7 +80,26 @@ export default function EditorPage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [content, contentType, id, published, title]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!id) return;
+      void saveContent(true);
+    }, 60000);
+    return () => window.clearInterval(interval);
+  }, [id, saveContent]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveContent(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [saveContent]);
 
   const restoreVersion = async (versionNumber: number) => {
     if (!id) return;

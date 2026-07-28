@@ -4,6 +4,21 @@ import { initDb, query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+type NoteRow = {
+  id: number;
+  title: string;
+  owner_name: string;
+  owner_email: string;
+  updated_at: string;
+  published: boolean;
+  content_type: string;
+  tags: string;
+};
+
+type TagRow = {
+  name: string;
+};
+
 export default async function HomePage({ searchParams }: { searchParams?: Promise<{ q?: string; tags?: string | string[] }> }) {
   await initDb();
   const session = await getSession();
@@ -13,7 +28,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const q = params?.q?.trim() || "";
   const selectedTags = Array.isArray(params?.tags) ? params.tags : params?.tags ? [params.tags] : [];
 
-  const notesResult = await query<any>(`
+  const notesResult = await query<NoteRow>(`
     SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.published, n.content_type,
            COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags
     FROM notes n
@@ -24,10 +39,10 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
     ORDER BY n.updated_at DESC
   `);
 
-  const tagsResult = await query<any>(`SELECT name FROM tags ORDER BY name`);
-  const tags = tagsResult.rows.map((row: any) => row.name);
+  const tagsResult = await query<TagRow>(`SELECT name FROM tags ORDER BY name`);
+  const tags = tagsResult.rows.map((row: TagRow) => row.name);
 
-  const notes = notesResult.rows.filter((note: any) => {
+  const notes = notesResult.rows.filter((note: NoteRow) => {
     const noteTags = note.tags ? note.tags.split(",") : [];
     const matchesQuery = !q || `${note.title} ${note.owner_name}`.toLowerCase().includes(q.toLowerCase());
     const matchesTags = selectedTags.length === 0 || selectedTags.every((tag) => noteTags.includes(tag));
@@ -65,7 +80,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             沒有符合條件的筆記。
           </div>
         ) : (
-          notes.map((note: any) => (
+          notes.map((note: NoteRow) => (
             <article key={note.id} className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>

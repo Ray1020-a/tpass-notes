@@ -5,6 +5,22 @@ import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+type NoteRow = {
+  id: number;
+  title: string;
+  owner_name: string;
+  owner_email: string;
+  updated_at: string;
+  created_at: string;
+  published: boolean;
+  content_type: string;
+  tags: string;
+};
+
+type TagRow = {
+  name: string;
+};
+
 export default async function PanelPage() {
   const session = await getSession();
   const permission = getPermissionEntry(session);
@@ -13,21 +29,21 @@ export default async function PanelPage() {
   }
 
   const [notesRes, tagsRes] = await Promise.all([
-    query<any>(`SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type, COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags FROM notes n LEFT JOIN note_tags nt ON nt.note_id = n.id LEFT JOIN tags t ON t.id = nt.tag_id GROUP BY n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type ORDER BY n.updated_at DESC`),
-    query<any>(`SELECT name FROM tags ORDER BY name`),
+    query<NoteRow>(`SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type, COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags FROM notes n LEFT JOIN note_tags nt ON nt.note_id = n.id LEFT JOIN tags t ON t.id = nt.tag_id GROUP BY n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type ORDER BY n.updated_at DESC`),
+    query<TagRow>(`SELECT name FROM tags ORDER BY name`),
   ]);
 
   const initialStats = {
-    total: notesRes.rows.filter((note: any) => note.published).length,
-    yourNotes: notesRes.rows.filter((note: any) => note.owner_email === session.email).length,
-    publishedByYou: notesRes.rows.filter((note: any) => note.owner_email === session.email && note.published).length,
-    unpublishedByYou: notesRes.rows.filter((note: any) => note.owner_email === session.email && !note.published).length,
+    total: notesRes.rows.filter((note: NoteRow) => note.published).length,
+    yourNotes: notesRes.rows.filter((note: NoteRow) => note.owner_email === session.email).length,
+    publishedByYou: notesRes.rows.filter((note: NoteRow) => note.owner_email === session.email && note.published).length,
+    unpublishedByYou: notesRes.rows.filter((note: NoteRow) => note.owner_email === session.email && !note.published).length,
   };
 
   return (
     <PanelClient
       initialNotes={notesRes.rows}
-      initialTags={tagsRes.rows.map((row: any) => row.name)}
+      initialTags={tagsRes.rows.map((row: TagRow) => row.name)}
       initialStats={initialStats}
       isAdmin={permission.role === "admin"}
     />
