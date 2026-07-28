@@ -2,10 +2,40 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "forbidden" }, { status: 401 });
+
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q") || "";
+  const tags = url.searchParams.getAll("tags");
+
   await initDb();
-  const result = await query<any>(`SELECT id, title, owner_name, updated_at, published FROM notes ORDER BY updated_at DESC`);
-  return NextResponse.json(result.rows);
+  const result = await query<any>(`
+    SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type,
+           COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags
+    FROM notes n
+    LEFT JOIN note_tags nt ON nt.note_id = n.id
+    LEFT JOIN tags t ON t.id = nt.tag_id
+    GROUP BY n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type
+    ORDER BY n.updated_at DESC
+  `);
+  const filtered = result.rows.filter((note: any) => {
+    const noteTags = note.tags ? note.tags.split(",") : [];
+    const matchesQuery = !q || `${note.title} ${note.owner_name}`.toLowerCase().includes(q.toLowerCase());
+    const matchesTags = tags.length === 0 || tags.every((tag) => noteTags.includes(tag));
+    return matchesQuery && matchesTags;
+  });
+
+  const tagsResult = await query<any>(`SELECT name FROM tags ORDER BY name`);
+  const stats = {
+    total: result.rows.filter((note: any) => note.published).length,
+    yourNotes: result.rows.filter((note: any) => note.owner_email === session.email).length,
+    publishedByYou: result.rows.filter((note: any) => note.owner_email === session.email && note.published).length,
+    unpublishedByYou: result.rows.filter((note: any) => note.owner_email === session.email && !note.published).length,
+  };
+
+  return NextResponse.json({ notes: filtered, tags: tagsResult.rows.map((row: any) => row.name), stats });
 }
 
 export async function POST(request: Request) {

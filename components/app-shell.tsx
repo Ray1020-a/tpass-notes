@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { canManage, getSession, getPermissionEntry } from "@/lib/auth";
+import { AccessGate } from "@/components/access-gate";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -8,6 +9,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[oklch(0.99_0.002_250)] text-[oklch(0.21_0.01_264)]">
+      <AccessGate restriction={permission.restriction} reason={permission.reason} />
       <header className="sticky top-0 z-50 border-b-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.99_0.002_250)]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="font-mono text-lg font-extrabold tracking-tight text-[oklch(0.21_0.01_264)]">

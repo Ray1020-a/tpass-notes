@@ -1,41 +1,58 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function EditorPage() {
   const params = useSearchParams();
+  const router = useRouter();
   const id = params.get("id");
   const [content, setContent] = useState("# 新筆記\n\n請在這裡輸入內容。\n");
   const [mode, setMode] = useState<"edit" | "preview" | "split">("split");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      const res = await fetch(`/api/notes/save?id=${id}`);
+      const data = await res.json();
+      if (data.content) setContent(data.content);
+    };
+    load();
+  }, [id]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       if (!id) return;
-      fetch("/api/notes/save", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, content, mode }),
-      }).catch(() => undefined);
+      saveContent();
     }, 60000);
     return () => window.clearInterval(interval);
-  }, [content, id, mode]);
+  }, [content, id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (!id) return;
-        fetch("/api/notes/save", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ id, content, mode }),
-        }).catch(() => undefined);
+        saveContent();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [content, id, mode]);
+  }, [content, id]);
+
+  const saveContent = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await fetch("/api/notes/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, content }),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const preview = useMemo(() => content, [content]);
 
@@ -47,6 +64,8 @@ export default function EditorPage() {
           <h1 className="text-2xl font-extrabold">協作編輯</h1>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">← 返回面板</button>
+          <button onClick={saveContent} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-3 py-2 font-semibold text-[oklch(0.99_0_0)] shadow-[3px_3px_0_0_var(--color-foreground)]">{saving ? "儲存中…" : "儲存"}</button>
           {(["edit", "preview", "split"] as const).map((value) => (
             <button key={value} onClick={() => setMode(value)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
               {value === "edit" ? "全編輯" : value === "preview" ? "全預覽" : "分欄"}
