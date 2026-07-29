@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   response.cookies.set("tpass_token", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: (process.env.SERVICE_SELF_URL || "").startsWith("https://"),
     path: "/",
     maxAge: Math.max(0, claims.exp - Math.floor(Date.now() / 1000)),
   });

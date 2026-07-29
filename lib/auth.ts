@@ -1,5 +1,6 @@
-import { SignJWT, jwtVerify } from "jose";
+import "server-only";
 import { cookies } from "next/headers";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
@@ -14,8 +15,6 @@ export interface TPassClaims {
   exp: number;
   iat?: number;
 }
-
-const DEV_SECRET = process.env.AUTH_DEV_SECRET || "tpass-notes-dev-secret";
 
 function getServiceId() {
   return process.env.TPASS_SERVICE_ID || "notes";
@@ -35,44 +34,14 @@ function normalizePermissions(permissions: TPassClaims["permissions"] | undefine
   };
 }
 
-export async function signDemoToken(claims: Omit<TPassClaims, "exp" | "iat">): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  return await new SignJWT({
-    ...claims,
-    permissions: normalizePermissions(claims.permissions),
-  })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuedAt(now)
-    .setExpirationTime(now + 60 * 60 * 8)
-    .sign(new TextEncoder().encode(DEV_SECRET));
-}
-
 export async function verifySession(token: string): Promise<TPassClaims | null> {
   try {
-    if (process.env.AUTH_DEV_MODE === "true") {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(DEV_SECRET), {
-        issuer: process.env.JWT_ISSUER || "https://auth.tschoolsu.org",
-        audience: `tpass:${getServiceId()}`,
-      });
-      const permissions = normalizePermissions(payload.permissions as TPassClaims["permissions"] | undefined);
-      return {
-        sub: String(payload.sub || ""),
-        email: String(payload.email || ""),
-        name: String(payload.name || ""),
-        permissions,
-        exp: Number(payload.exp || 0),
-        iat: Number(payload.iat || 0),
-      };
-    }
-
     const jwksUrl = process.env.AUTH_JWKS_URL;
-    if (!jwksUrl) {
-      return null;
-    }
+    if (!jwksUrl) return null;
 
-    const { createRemoteJWKSet } = await import("jose");
     const JWKS = createRemoteJWKSet(new URL(jwksUrl));
     const { payload } = await jwtVerify(token, JWKS, {
+      algorithms: ["EdDSA"],
       issuer: process.env.JWT_ISSUER || "https://auth.tschoolsu.org",
       audience: `tpass:${getServiceId()}`,
     });
@@ -107,9 +76,17 @@ export function getPermissionEntry(session: TPassClaims | null | undefined) {
   };
 }
 
+export function loginUrlFor(returnPath = "/"): string {
+  const u = new URL(process.env.AUTH_AUTHORIZE_URL || "https://auth.tschoolsu.org/api/auth/authorize");
+  u.searchParams.set("service", process.env.TPASS_SERVICE_ID || "notes");
+  u.searchParams.set("redirect_uri", `${process.env.SERVICE_SELF_URL || "http://127.0.0.1:3007"}/api/auth/callback`);
+  u.searchParams.set("next", returnPath);
+  return u.toString();
+}
+
 export async function requireSession(returnPath = "/") {
   const session = await getSession();
-  if (!session) redirect(`/api/auth/login?next=${encodeURIComponent(returnPath)}`);
+  if (!session) redirect(loginUrlFor(returnPath));
   return session;
 }
 
