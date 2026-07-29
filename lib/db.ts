@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 pool.on("connect", (client) => {
-  client.query("SET timezone TO 'Asia/Taipei'");
+  client.query("SET timezone TO 'Asia/Taipei'").catch(() => {});
 });
 
 let initialized = false;
