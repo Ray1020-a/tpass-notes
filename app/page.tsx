@@ -12,25 +12,41 @@ type NoteRow = {
   updated_at: string;
   published: boolean;
   content_type: string;
+  tags: string;
 };
 
-export default async function HomePage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
+type TagRow = {
+  name: string;
+};
+
+export default async function HomePage({ searchParams }: { searchParams?: Promise<{ q?: string; tags?: string | string[] }> }) {
   await initDb();
   const session = await getSession();
   const permission = getPermissionEntry(session);
 
   const params = await searchParams;
   const q = params?.q?.trim() || "";
+  const selectedTags = Array.isArray(params?.tags) ? params.tags : params?.tags ? [params.tags] : [];
 
   const notesResult = await query<NoteRow>(`
-    SELECT id, title, owner_name, owner_email, updated_at, published, content_type
-    FROM notes
-    WHERE published = true
-    ORDER BY updated_at DESC
+    SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.published, n.content_type,
+           COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags
+    FROM notes n
+    LEFT JOIN note_tags nt ON nt.note_id = n.id
+    LEFT JOIN tags t ON t.id = nt.tag_id
+    WHERE n.published = true
+    GROUP BY n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.published, n.content_type
+    ORDER BY n.updated_at DESC
   `);
 
+  const tagsResult = await query<TagRow>(`SELECT name FROM tags ORDER BY name`);
+  const allTags = tagsResult.rows.map((row: TagRow) => row.name);
+
   const notes = notesResult.rows.filter((note: NoteRow) => {
-    return !q || `${note.title} ${note.owner_name}`.toLowerCase().includes(q.toLowerCase());
+    const noteTags = note.tags ? note.tags.split(",") : [];
+    const matchesQuery = !q || `${note.title} ${note.owner_name}`.toLowerCase().includes(q.toLowerCase());
+    const matchesTags = selectedTags.length === 0 || selectedTags.some((tag) => noteTags.includes(tag));
+    return matchesQuery && matchesTags;
   });
 
   return (
@@ -44,18 +60,28 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               {permission.role === "default" ? "您可瀏覽已發布的筆記。" : "可查看公開筆記與管理狀態。"}
             </p>
           </div>
-          <form method="get" className="flex flex-col gap-3 md:flex-row">
+          <form method="get" className="flex flex-col gap-3 md:flex-row md:items-end">
             <input
               name="q"
               defaultValue={q}
               placeholder="搜尋標題或作者"
               className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[5px_5px_0_0_var(--color-foreground)] focus:outline-none"
             />
+            <select
+              name="tags"
+              multiple
+              defaultValue={selectedTags}
+              className="min-h-[42px] rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]"
+            >
+              {allTags.map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
             <button
               type="submit"
               className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
             >
-              搜尋
+              篩選
             </button>
           </form>
         </div>
@@ -74,6 +100,18 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="flex-1">
+                  {note.tags ? (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {note.tags.split(",").filter(Boolean).map((tag: string) => (
+                        <span
+                          key={tag}
+                          className="rounded-md border-2 border-foreground bg-muted px-2 py-0.5 font-mono text-[11px] font-bold"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <h2 className="text-xl font-extrabold group-hover:text-primary transition-colors">{note.title}</h2>
                   <p className="mt-2 text-sm text-muted-foreground">
                     擁有者：{note.owner_name} · 更新：{new Date(note.updated_at).toLocaleString("zh-TW")}

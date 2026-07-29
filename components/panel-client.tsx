@@ -13,6 +13,7 @@ interface NoteRow {
   updated_at: string;
   published: boolean;
   content_type: string;
+  tags: string;
   latest_content?: string;
   file_path?: string;
   file_size?: number;
@@ -33,6 +34,7 @@ interface VersionItem {
 
 interface PanelClientProps {
   initialNotes: NoteRow[];
+  initialTags: string[];
   initialStats: {
     total: number;
     yourNotes: number;
@@ -42,17 +44,21 @@ interface PanelClientProps {
   isAdmin: boolean;
 }
 
-export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClientProps) {
+export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }: PanelClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [notes, setNotes] = useState(initialNotes);
+  const [tags, setTags] = useState(initialTags);
   const [stats, setStats] = useState(initialStats);
   const [q, setQ] = useState(searchParams.get("q") || "");
+  const [selectedTags, setSelectedTags] = useState<string[]>(searchParams.getAll("tags"));
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState("markdown");
+  const [newTags, setNewTags] = useState<string[]>([]);
   const [detailNoteId, setDetailNoteId] = useState<number | null>(null);
   const [detailNote, setDetailNote] = useState<NoteRow | null>(null);
+  const [detailTags, setDetailTags] = useState<string[]>([]);
   const [detailTitle, setDetailTitle] = useState("");
   const [detailNewCollab, setDetailNewCollab] = useState("");
   const [detailNewCollabName, setDetailNewCollabName] = useState("");
@@ -65,26 +71,29 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
     const load = async () => {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
+      for (const tag of selectedTags) params.append("tags", tag);
       router.replace(`/panel?${params.toString()}`);
       const res = await fetch(`/api/notes?${params.toString()}`);
       const data = await res.json();
       setNotes(data.notes || []);
+      setTags(data.tags || []);
       setStats(data.stats || initialStats);
     };
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
-  }, [q, router, initialStats]);
+  }, [q, selectedTags, router, initialStats]);
 
   const createNote = async () => {
     const res = await fetch("/api/notes", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, contentType }),
+      body: JSON.stringify({ title, contentType, tags: newTags }),
     });
     const data = await res.json();
     if (data.ok) {
       setCreating(false);
       setTitle("");
+      setNewTags([]);
       window.location.href = `/editor?id=${data.id}`;
     }
   };
@@ -106,6 +115,7 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
     setDetailNoteId(note.id);
     setDetailNote(note);
     setDetailTitle(note.title);
+    setDetailTags(note.tags ? note.tags.split(",").filter(Boolean) : []);
     setFeedback("");
     const res = await fetch(`/api/notes/save?id=${note.id}`);
     const data = await res.json();
@@ -125,6 +135,20 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
       setFeedback("標題已更新");
       setNotes((prev) => prev.map((n) => n.id === detailNoteId ? { ...n, title: detailTitle } : n));
     }
+  };
+
+  const toggleDetailTag = async (tagName: string) => {
+    if (!detailNoteId) return;
+    const next = detailTags.includes(tagName)
+      ? detailTags.filter((t) => t !== tagName)
+      : [...detailTags, tagName];
+    setDetailTags(next);
+    const res = await fetch(`/api/notes/tags`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ noteId: detailNoteId, tags: next }),
+    });
+    if (!res.ok) setFeedback("標籤更新失敗");
   };
 
   const addDetailCollaborator = async () => {
@@ -209,6 +233,16 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
               placeholder="搜尋標題或作者"
               className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[5px_5px_0_0_var(--color-foreground)] focus:outline-none"
             />
+            <select
+              multiple
+              value={selectedTags}
+              onChange={(event) => setSelectedTags(Array.from(event.target.selectedOptions, (o) => o.value))}
+              className="min-h-[42px] rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]"
+            >
+              {tags.map((tag) => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
             <button
               onClick={() => setCreating(true)}
               className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
@@ -239,6 +273,22 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
               <option value="pdf">PDF</option>
             </select>
           </div>
+          <div className="mt-3">
+            <label className="text-sm font-semibold">標籤（可複選）</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setNewTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
+                  className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
+                    newTags.includes(tag) ? "bg-primary text-background" : "bg-card"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-4 flex gap-3">
             <button
               onClick={createNote}
@@ -265,6 +315,13 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
           >
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <button onClick={() => openDetail(note)} className="flex-1 text-left">
+                {note.tags ? (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {note.tags.split(",").filter(Boolean).map((tag: string) => (
+                      <span key={tag} className="rounded-md border-2 border-foreground bg-muted px-2 py-0.5 font-mono text-[11px] font-bold">{tag}</span>
+                    ))}
+                  </div>
+                ) : null}
                 <h2 className="text-xl font-extrabold group-hover:text-primary transition-colors">{note.title}</h2>
                 <p className="mt-1.5 text-sm text-muted-foreground">
                   {note.content_type === "pdf"
@@ -335,6 +392,23 @@ export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClient
                 >
                   儲存
                 </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">標籤</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleDetailTag(tag)}
+                    className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
+                      detailTags.includes(tag) ? "bg-primary text-background" : "bg-card"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
               </div>
             </div>
 

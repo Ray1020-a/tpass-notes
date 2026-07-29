@@ -19,8 +19,20 @@ export async function initDb() {
 
   await mkdir(path.join(process.cwd(), "public", "uploads"), { recursive: true });
 
-  await pool.query(`DROP TABLE IF EXISTS note_tags`);
-  await pool.query(`DROP TABLE IF EXISTS tags`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS note_tags (
+      note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (note_id, tag_id)
+    );
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notes (
