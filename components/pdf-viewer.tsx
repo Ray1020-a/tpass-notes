@@ -1,39 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/TextLayer.css";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 export function PdfViewer({ fileUrl, fileName }: { fileUrl: string; fileName?: string }) {
-  const [numPages, setNumPages] = useState(0);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1);
+  const [fullscreen, setFullscreen] = useState(false);
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
-  }
+  const apiUrl = `/api/files/${fileUrl.split("/").pop()}`;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-foreground bg-muted p-3">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setPageNumber((prev) => Math.max(1, prev - 1))} disabled={pageNumber <= 1} className="rounded-lg border-2 border-foreground bg-card px-3 py-1 font-mono text-sm font-bold shadow-[2px_2px_0_0_var(--color-foreground)] disabled:opacity-40">&lt;</button>
-          <span className="font-mono text-sm font-bold">{pageNumber} / {numPages}</span>
-          <button onClick={() => setPageNumber((prev) => Math.min(numPages, prev + 1))} disabled={pageNumber >= numPages} className="rounded-lg border-2 border-foreground bg-card px-3 py-1 font-mono text-sm font-bold shadow-[2px_2px_0_0_var(--color-foreground)] disabled:opacity-40">&gt;</button>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <svg className="h-5 w-5 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span className="font-semibold text-foreground">{fileName || "PDF 文件"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setScale((prev) => Math.max(0.5, prev - 0.1))} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)]">-</button>
-          <span className="font-mono text-sm font-bold">{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale((prev) => Math.min(2, prev + 0.1))} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)]">+</button>
+          <a
+            href={apiUrl}
+            download
+            className="rounded-lg border-2 border-foreground bg-card px-3 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
+          >
+            下載
+          </a>
+          <button
+            onClick={() => setFullscreen(!fullscreen)}
+            className="rounded-lg border-2 border-foreground bg-card px-3 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
+          >
+            {fullscreen ? "還原" : "全螢幕"}
+          </button>
         </div>
       </div>
-      <div className="flex justify-center rounded-xl border-2 border-foreground bg-card p-4">
-        <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading={<div className="py-8 text-center font-semibold text-muted-foreground">載入中…</div>} error={<div className="py-8 text-center font-semibold text-destructive">無法載入 PDF</div>}>
-          <Page pageNumber={pageNumber} scale={scale} renderTextLayer={true} renderAnnotationLayer={true} />
-        </Document>
+      <div className={`${fullscreen ? "fixed inset-0 z-[200] bg-background p-4" : ""}`}>
+        <div className={`${fullscreen ? "h-full w-full" : "min-h-[70vh]"} rounded-xl border-2 border-foreground bg-card overflow-hidden`}>
+          <iframe
+            src={apiUrl}
+            className="h-full w-full"
+            title={fileName || "PDF 閱讀器"}
+          />
+        </div>
+        {fullscreen ? (
+          <button
+            onClick={() => setFullscreen(false)}
+            className="fixed right-6 top-6 z-[201] rounded-xl border-2 border-foreground bg-card px-4 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+          >
+            關閉全螢幕
+          </button>
+        ) : null}
       </div>
     </div>
   );
