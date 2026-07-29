@@ -48,3 +48,6 @@ style.md
 
 # logs
 logs/
+
+# uploads (runtime files)
+public/uploads/

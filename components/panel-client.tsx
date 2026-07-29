@@ -111,6 +111,17 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     }
   };
 
+  const deleteNote = async (noteId: number) => {
+    if (!window.confirm("確定要永久刪除此筆記？此操作無法復原。")) return;
+    const res = await fetch(`/api/notes/${noteId}`, { method: "DELETE" });
+    if (res.ok) {
+      setNotes((prev) => prev.filter((note) => note.id !== noteId));
+    } else {
+      const data = await res.json();
+      alert(data.error || "刪除失敗");
+    }
+  };
+
   const openDetail = async (note: NoteRow) => {
     setDetailNoteId(note.id);
     setDetailNote(note);
@@ -353,6 +364,14 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
                 >
                   {note.published ? "下架" : "上架"}
                 </button>
+                {!note.published ? (
+                  <button
+                    onClick={() => deleteNote(note.id)}
+                    className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+                  >
+                    刪除
+                  </button>
+                ) : null}
               </div>
             </div>
           </article>
