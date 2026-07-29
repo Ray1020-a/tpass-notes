@@ -79,7 +79,7 @@ export function getPermissionEntry(session: TPassClaims | null | undefined) {
 export function loginUrlFor(returnPath = "/"): string {
   const u = new URL(process.env.AUTH_AUTHORIZE_URL || "https://auth.tschoolsu.org/api/auth/authorize");
   u.searchParams.set("service", process.env.TPASS_SERVICE_ID || "notes");
-  u.searchParams.set("redirect_uri", `${process.env.SERVICE_SELF_URL || "http://127.0.0.1:3007"}/api/auth/callback`);
+  u.searchParams.set("redirect_uri", `${process.env.SERVICE_SELF_URL || "https://notes.tschoolsu.org"}/api/auth/callback`);
   u.searchParams.set("next", returnPath);
   return u.toString();
 }

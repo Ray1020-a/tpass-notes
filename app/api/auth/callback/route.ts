@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   }
 
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
-  const response = NextResponse.redirect(new URL(safeNext, process.env.SERVICE_SELF_URL || "http://127.0.0.1:3000"), 303);
+  const response = NextResponse.redirect(new URL(safeNext, process.env.SERVICE_SELF_URL || "https://notes.tschoolsu.org"), 303);
   response.cookies.set("tpass_token", token, {
     httpOnly: true,
     sameSite: "lax",
