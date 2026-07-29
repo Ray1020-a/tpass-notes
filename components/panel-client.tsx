@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TagMultiSelect } from "@/components/tag-multi-select";
 
 interface NoteRow {
   id: number;
@@ -148,12 +149,9 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     }
   };
 
-  const toggleDetailTag = async (tagName: string) => {
-    if (!detailNoteId) return;
-    const next = detailTags.includes(tagName)
-      ? detailTags.filter((t) => t !== tagName)
-      : [...detailTags, tagName];
+  const updateDetailTags = async (next: string[]) => {
     setDetailTags(next);
+    if (!detailNoteId) return;
     const res = await fetch(`/api/notes/tags`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -244,16 +242,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
               placeholder="搜尋標題或作者"
               className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[5px_5px_0_0_var(--color-foreground)] focus:outline-none"
             />
-            <select
-              multiple
-              value={selectedTags}
-              onChange={(event) => setSelectedTags(Array.from(event.target.selectedOptions, (o) => o.value))}
-              className="min-h-[42px] rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]"
-            >
-              {tags.map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
+            <TagMultiSelect tags={tags} selected={selectedTags} onChange={setSelectedTags} />
             <button
               onClick={() => setCreating(true)}
               className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
@@ -285,19 +274,9 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             </select>
           </div>
           <div className="mt-3">
-            <label className="text-sm font-semibold">標籤（可複選）</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setNewTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
-                  className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
-                    newTags.includes(tag) ? "bg-primary text-background" : "bg-card"
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
+            <label className="text-sm font-semibold">標籤</label>
+            <div className="mt-2">
+              <TagMultiSelect tags={tags} selected={newTags} onChange={setNewTags} placeholder="選擇標籤" />
             </div>
           </div>
           <div className="mt-4 flex gap-3">
@@ -416,18 +395,8 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
 
             <div>
               <label className="text-sm font-semibold">標籤</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleDetailTag(tag)}
-                    className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
-                      detailTags.includes(tag) ? "bg-primary text-background" : "bg-card"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
+              <div className="mt-2">
+                <TagMultiSelect tags={tags} selected={detailTags} onChange={updateDetailTags} />
               </div>
             </div>
 
