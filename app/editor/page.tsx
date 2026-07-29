@@ -50,6 +50,7 @@ export default function EditorPage() {
   const [pendingType, setPendingType] = useState<"markdown" | "pdf" | null>(null);
   const [noteTags, setNoteTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     const updateViewport = () => setIsMobile(window.innerWidth < 768);
@@ -88,6 +89,7 @@ export default function EditorPage() {
         body: JSON.stringify({ id, content, title, contentType, published }),
       });
       const data = await res.json();
+      if (res.ok) setDirty(false);
       if (!silent) setFeedback(res.ok ? "已儲存筆記內容" : data.error || "儲存失敗");
       if (data.ok && Array.isArray(data.versions)) {
         setVersions(data.versions);
@@ -205,9 +207,9 @@ export default function EditorPage() {
           <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
             {saving ? "儲存中…" : "儲存"}
           </button>
-          <button onClick={() => { const next = !published; setPublished(next); void saveContent(false); }} className="rounded-xl border-2 border-foreground bg-secondary px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
-            {published ? "已上架" : "草稿"}
-          </button>
+          <span className={`rounded-xl border-2 px-3 py-2 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] ${dirty ? "bg-destructive text-background border-foreground" : "bg-primary text-background border-foreground"}`}>
+            {dirty ? "未儲存" : "已儲存"}
+          </span>
           {contentType === "markdown" ? (
             (["edit", "preview", "split"] as const).map((value) => (
               <button key={value} onClick={() => setMode(value)} className={`rounded-xl border-2 border-foreground px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] ${mode === value ? "bg-primary text-background" : "bg-card"}`}>
@@ -274,7 +276,7 @@ export default function EditorPage() {
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
         <div className="space-y-4 rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
           <div className="flex items-center justify-between gap-3">
-            <input value={title} onChange={(event) => setTitle(event.target.value)} className="flex-1 rounded-xl border-2 border-foreground px-3 py-2" placeholder="筆記標題" />
+            <input value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} className="flex-1 rounded-xl border-2 border-foreground px-3 py-2" placeholder="筆記標題" />
             <div className="flex items-center gap-1.5 rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm font-bold">
               <span>{contentType === "pdf" ? "PDF" : "MD"}</span>
               <button
@@ -308,10 +310,10 @@ export default function EditorPage() {
                   </article>
                 </div>
               ) : mode === "edit" ? (
-                <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
+                <textarea value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
+                  <textarea value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
                   <div className="min-h-[60vh] rounded-xl border-2 border-foreground p-4">
                     <article className="prose prose-sm max-w-none">
                       <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
