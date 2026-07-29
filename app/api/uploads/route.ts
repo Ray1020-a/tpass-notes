@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   const safeNameBase = path.parse(file.name).name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
   const safeName = `${Date.now()}-${safeNameBase}.pdf`;
-  const destDir = path.join(process.cwd(), "public", "uploads");
+  const destDir = path.join(process.cwd(), "uploads");
   const destPath = path.join(destDir, safeName);
 
   await writeFile(destPath, bytes);
@@ -67,11 +67,11 @@ export async function POST(request: Request) {
     await query(`
       INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name, created_by_sub)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `, [noteId, version, `/uploads/${safeName}`, file.size, "application/pdf", session.email, session.name, session.sub]);
+    `, [noteId, version, `uploads/${safeName}`, file.size, "application/pdf", session.email, session.name, session.sub]);
 
     await query(`UPDATE notes SET content_type = 'pdf', updated_at = NOW() WHERE id = $1`, [noteId]);
 
-    return NextResponse.json({ ok: true, path: `/uploads/${safeName}` });
+    return NextResponse.json({ ok: true, path: `uploads/${safeName}` });
   } catch {
     try { await unlink(destPath); } catch {}
     return NextResponse.json({ error: "upload failed" }, { status: 500 });

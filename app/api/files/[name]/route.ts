@@ -14,12 +14,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
   const safeName = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "");
   if (!safeName) return new NextResponse(null, { status: 404 });
 
-  const filePath = path.join(process.cwd(), "public", "uploads", safeName);
+  const filePath = path.join(process.cwd(), "uploads", safeName);
 
   try {
     await initDb();
     const versionResult = await query<{ note_id: number }>(
-      `SELECT note_id FROM note_versions WHERE file_path = $1`, [`/uploads/${safeName}`]
+      `SELECT note_id FROM note_versions WHERE file_path = $1`, [`uploads/${safeName}`]
     );
     if (versionResult.rows.length === 0) return new NextResponse(null, { status: 404 });
 

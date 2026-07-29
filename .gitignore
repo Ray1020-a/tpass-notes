@@ -48,5 +48,6 @@ specification/
 # logs
 logs/
 
-# uploads (runtime files)
+# uploads (runtime PDF files)
+uploads/
 public/uploads/

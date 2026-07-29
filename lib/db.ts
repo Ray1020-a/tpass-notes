@@ -21,7 +21,7 @@ export async function initDb() {
   if (initialized) return;
   initialized = true;
 
-  await mkdir(path.join(process.cwd(), "public", "uploads"), { recursive: true });
+  await mkdir(path.join(process.cwd(), "uploads"), { recursive: true });
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tags (

@@ -201,7 +201,7 @@ export async function DELETE(request: Request) {
 
   if (version.file_path) {
     const safePath = version.file_path.replace(/^\/+/, "");
-    const absPath = path.join(process.cwd(), "public", safePath);
+    const absPath = path.join(process.cwd(), safePath);
     try { await unlink(absPath); } catch {}
   }
 
