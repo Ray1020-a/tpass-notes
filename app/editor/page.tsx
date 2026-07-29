@@ -339,26 +339,26 @@ export default function EditorPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-1 rounded-xl border-2 border-foreground bg-muted p-1.5 shadow-[2px_2px_0_0_var(--color-foreground)]">
                     {(["H1", "H2", "H3", "H4", "H5", "H6"] as const).map((h) => (
-                      <button key={h} onClick={() => insertLine(`${"#".repeat(Number(h[1]))} `)} title={h} className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{h}</button>
+                      <button key={h} onMouseDown={(e) => { e.preventDefault(); insertLine(`${"#".repeat(Number(h[1]))} `); }} title={h} className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{h}</button>
                     ))}
                     <span className="mx-1 h-5 w-px bg-foreground/20" />
-                    <button onClick={() => wrap("**", "**")} title="粗體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0"><b>B</b></button>
-                    <button onClick={() => wrap("*", "*")} title="斜體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold italic hover:border-foreground hover:bg-card active:translate-y-0"><i>I</i></button>
-                    <button onClick={() => wrap("~~", "~~")} title="刪除線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold line-through hover:border-foreground hover:bg-card active:translate-y-0">S</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); wrap("**", "**"); }} title="粗體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0"><b>B</b></button>
+                    <button onMouseDown={(e) => { e.preventDefault(); wrap("*", "*"); }} title="斜體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold italic hover:border-foreground hover:bg-card active:translate-y-0"><i>I</i></button>
+                    <button onMouseDown={(e) => { e.preventDefault(); wrap("~~", "~~"); }} title="刪除線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold line-through hover:border-foreground hover:bg-card active:translate-y-0">S</button>
                     <span className="mx-1 h-5 w-px bg-foreground/20" />
-                    <button onClick={() => insertLine("- ")} title="無序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">•</button>
-                    <button onClick={() => insertLine("1. ")} title="有序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">1.</button>
-                    <button onClick={() => insertLine("- [ ] ")} title="任務清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">☐</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertLine("- "); }} title="無序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">•</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertLine("1. "); }} title="有序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">1.</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertLine("- [ ] "); }} title="任務清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">☐</button>
                     <span className="mx-1 h-5 w-px bg-foreground/20" />
-                    <button onClick={insertLink} title="連結" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🔗</button>
-                    <button onClick={insertImage} title="圖片" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🖼</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertLink(); }} title="連結" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🔗</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertImage(); }} title="圖片" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🖼</button>
                     <span className="mx-1 h-5 w-px bg-foreground/20" />
-                    <button onClick={() => wrap("`", "`")} title="行內程式碼" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">&lt;/&gt;</button>
-                    <button onClick={insertCodeBlock} title="程式碼區塊" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{ }</button>
-                    <button onClick={() => insertLine("> ")} title="引言" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">＂</button>
-                    <button onClick={insertTable} title="表格" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">⊞</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); wrap("`", "`"); }} title="行內程式碼" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">&lt;/&gt;</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertCodeBlock(); }} title="程式碼區塊" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{ }</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertLine("> "); }} title="引言" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">＂</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); insertTable(); }} title="表格" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">⊞</button>
                     <span className="mx-1 h-5 w-px bg-foreground/20" />
-                    <button onClick={() => wrap("\n---\n", "")} title="分隔線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">—</button>
+                    <button onMouseDown={(e) => { e.preventDefault(); wrap("\n---\n", ""); }} title="分隔線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">—</button>
                   </div>
                   <div className="flex rounded-xl border-2 border-foreground overflow-hidden shadow-[2px_2px_0_0_var(--color-foreground)] self-start">
                     {(["edit", "split", "preview"] as const).map((value, i) => (
