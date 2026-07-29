@@ -62,7 +62,6 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
   const [detailTags, setDetailTags] = useState<string[]>([]);
   const [detailTitle, setDetailTitle] = useState("");
   const [detailNewCollab, setDetailNewCollab] = useState("");
-  const [detailNewCollabName, setDetailNewCollabName] = useState("");
   const [detailCollaborators, setDetailCollaborators] = useState<{ email: string; name: string }[]>([]);
   const [detailVersions, setDetailVersions] = useState<VersionItem[]>([]);
   const [feedback, setFeedback] = useState("");
@@ -166,7 +165,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     if (!detailNoteId || !detailNewCollab.trim()) return;
     const next = [
       ...detailCollaborators,
-      { email: detailNewCollab.trim(), name: detailNewCollabName.trim() || detailNewCollab.trim() },
+      { email: detailNewCollab.trim(), name: detailNewCollab.trim() },
     ];
     const res = await fetch(`/api/notes/${detailNoteId}`, {
       method: "PATCH",
@@ -457,13 +456,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
 
             <div>
               <label className="text-sm font-semibold">協作者</label>
-              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={detailNewCollabName}
-                  onChange={(event) => setDetailNewCollabName(event.target.value)}
-                  placeholder="姓名"
-                  className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[4px_4px_0_0_var(--color-foreground)] focus:outline-none"
-                />
+              <div className="mt-1 flex gap-2">
                 <input
                   value={detailNewCollab}
                   onChange={(event) => setDetailNewCollab(event.target.value)}

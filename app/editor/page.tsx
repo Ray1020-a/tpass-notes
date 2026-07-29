@@ -39,7 +39,6 @@ export default function EditorPage() {
   const [versions, setVersions] = useState<VersionItem[]>([]);
   const [collaborators, setCollaborators] = useState<CollaboratorItem[]>([]);
   const [newCollaborator, setNewCollaborator] = useState("");
-  const [newCollaboratorName, setNewCollaboratorName] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -147,8 +146,8 @@ export default function EditorPage() {
   const addCollaborator = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newCollaborator.trim()) return;
-    const next = [...collaborators, { email: newCollaborator.trim(), name: newCollaboratorName.trim() || newCollaborator.trim() }];
-    setNewCollaborator(""); setNewCollaboratorName("");
+    const next = [...collaborators, { email: newCollaborator.trim(), name: newCollaborator.trim() }];
+    setNewCollaborator("");
     await saveCollaborators(next);
   };
 
@@ -350,7 +349,6 @@ export default function EditorPage() {
           <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
             <h2 className="text-lg font-extrabold">協作者</h2>
             <form onSubmit={addCollaborator} className="mt-3 space-y-2">
-              <input value={newCollaboratorName} onChange={(event) => setNewCollaboratorName(event.target.value)} placeholder="姓名" className="w-full rounded-xl border-2 border-foreground px-3 py-2" />
               <input value={newCollaborator} onChange={(event) => setNewCollaborator(event.target.value)} placeholder="email" className="w-full rounded-xl border-2 border-foreground px-3 py-2" />
               <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">新增協作者</button>
             </form>
