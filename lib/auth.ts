@@ -23,12 +23,20 @@ function getServiceId() {
 function normalizePermissions(permissions: TPassClaims["permissions"] | undefined): TPassClaims["permissions"] {
   const service = getServiceId();
   const entry = permissions?.[service] ?? { read: true, role: "default" };
+  const role = (entry.role as Role) ?? "default";
+  const rawRestriction = entry.restriction as string | undefined;
+  let restriction: Restriction = "none";
+  if (rawRestriction === "ban" || rawRestriction === "warning") {
+    restriction = rawRestriction;
+  } else if (role === "ban" || role === "warning") {
+    restriction = role as Restriction;
+  }
   return {
     ...(permissions ?? {}),
     [service]: {
       read: entry.read ?? true,
-      role: (entry.role as Role | undefined) ?? "default",
-      restriction: (entry.restriction as Restriction | undefined) ?? "none",
+      role: role === "ban" || role === "warning" ? "default" : role,
+      restriction,
       reason: entry.reason ?? "",
     },
   };
@@ -68,10 +76,18 @@ export const getSession = cache(async (): Promise<TPassClaims | null> => {
 export function getPermissionEntry(session: TPassClaims | null | undefined) {
   const service = getServiceId();
   const entry = session?.permissions?.[service] ?? { read: true, role: "default", restriction: "none" as Restriction, reason: "" };
+  const role = (entry.role as Role) ?? "default";
+  const rawRestriction = entry.restriction as string | undefined;
+  let restriction: Restriction = "none";
+  if (rawRestriction === "ban" || rawRestriction === "warning") {
+    restriction = rawRestriction;
+  } else if (role === "ban" || role === "warning") {
+    restriction = role as Restriction;
+  }
   return {
     read: entry.read ?? true,
-    role: (entry.role as Role | undefined) ?? "default",
-    restriction: (entry.restriction as Restriction | undefined) ?? "none",
+    role: role === "ban" || role === "warning" ? "default" : role,
+    restriction,
     reason: entry.reason ?? "",
   };
 }

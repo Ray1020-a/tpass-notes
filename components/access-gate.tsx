@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 
 export function AccessGate({ restriction, reason }: { restriction?: string; reason?: string }) {
   const [open, setOpen] = useState(restriction === "warning");
+  const [canClose, setCanClose] = useState(false);
 
   useEffect(() => {
     if (restriction === "warning") {
-      const timer = window.setTimeout(() => setOpen(false), 5000);
-      return () => window.clearTimeout(timer);
+      setCanClose(false);
+      const closeTimer = window.setTimeout(() => setOpen(false), 5000);
+      const enableTimer = window.setTimeout(() => setCanClose(true), 5000);
+      return () => { window.clearTimeout(closeTimer); window.clearTimeout(enableTimer); };
     }
     if (restriction === "ban") {
       window.location.replace("https://portal.tschoolsu.org/");
@@ -31,9 +34,10 @@ export function AccessGate({ restriction, reason }: { restriction?: string; reas
         </div>
         <button
           onClick={() => setOpen(false)}
-          className="mt-4 w-full rounded-xl border-2 border-foreground bg-card px-4 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+          disabled={!canClose}
+          className="mt-4 w-full rounded-xl border-2 border-foreground bg-card px-4 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          立即關閉
+          {canClose ? "關閉" : "請等待 5 秒…"}
         </button>
       </div>
     </div>
