@@ -14,11 +14,7 @@ type NoteRow = {
   created_at: string;
   published: boolean;
   content_type: string;
-  tags: string;
-};
-
-type TagRow = {
-  name: string;
+  latest_content?: string;
 };
 
 export default async function PanelPage() {
@@ -28,10 +24,11 @@ export default async function PanelPage() {
     redirect("/api/auth/login?next=/panel");
   }
 
-  const [notesRes, tagsRes] = await Promise.all([
-    query<NoteRow>(`SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type, COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags FROM notes n LEFT JOIN note_tags nt ON nt.note_id = n.id LEFT JOIN tags t ON t.id = nt.tag_id GROUP BY n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at, n.published, n.content_type ORDER BY n.updated_at DESC`),
-    query<TagRow>(`SELECT name FROM tags ORDER BY name`),
-  ]);
+  const notesRes = await query<NoteRow>(`
+    SELECT id, title, owner_name, owner_email, updated_at, created_at, published, content_type, latest_content
+    FROM notes
+    ORDER BY updated_at DESC
+  `);
 
   const initialStats = {
     total: notesRes.rows.filter((note: NoteRow) => note.published).length,
@@ -43,7 +40,6 @@ export default async function PanelPage() {
   return (
     <PanelClient
       initialNotes={notesRes.rows}
-      initialTags={tagsRes.rows.map((row: TagRow) => row.name)}
       initialStats={initialStats}
       isAdmin={permission.role === "admin"}
     />

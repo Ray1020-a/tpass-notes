@@ -19,12 +19,8 @@ export async function initDb() {
 
   await mkdir(path.join(process.cwd(), "public", "uploads"), { recursive: true });
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS tags (
-      id SERIAL PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL
-    );
-  `);
+  await pool.query(`DROP TABLE IF EXISTS note_tags`);
+  await pool.query(`DROP TABLE IF EXISTS tags`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS notes (
@@ -40,14 +36,6 @@ export async function initDb() {
       latest_content TEXT DEFAULT ''
     );
     ALTER TABLE notes ADD COLUMN IF NOT EXISTS owner_sub TEXT DEFAULT '';
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS note_tags (
-      note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY (note_id, tag_id)
-    );
   `);
 
   await pool.query(`
@@ -78,18 +66,11 @@ export async function initDb() {
     );
   `);
 
-  await pool.query(`
-    INSERT INTO tags (name)
-    SELECT * FROM (VALUES ('數學'), ('自然'), ('社會'), ('語文'), ('科技')) AS v(name)
-    ON CONFLICT (name) DO NOTHING;
-  `);
-
   const noteCount = await pool.query(`SELECT COUNT(*)::int AS count FROM notes`);
   if (noteCount.rows[0].count === 0) {
     const inserted = await pool.query(`
       INSERT INTO notes (title, content_type, owner_email, owner_name, published, latest_content)
-      VALUES
-        ('數學補充筆記', 'markdown', '11454@tschool.tp.edu.tw', '王大貴', true, '# 數學補充筆記\n\n- 這是一份示範筆記\n- 可以在管理面板中編輯與版本化')
+      VALUES ('數學補充筆記', 'markdown', '11454@tschool.tp.edu.tw', '王大貴', true, '# 數學補充筆記\n\n- 這是一份示範筆記\n- 可以在管理面板中編輯與版本化')
       RETURNING id;
     `);
     const noteId = inserted.rows[0].id as number;
@@ -97,7 +78,6 @@ export async function initDb() {
       INSERT INTO note_versions (note_id, version_number, content, created_by_email, created_by_name)
       VALUES ($1, 1, $2, $3, $4)
     `, [noteId, '# 數學補充筆記\n\n- 這是一份示範筆記\n- 可以在管理面板中編輯與版本化', '11454@tschool.tp.edu.tw', '王大貴']);
-    await pool.query(`INSERT INTO note_tags (note_id, tag_id) SELECT $1, id FROM tags WHERE name IN ('數學', '科技')`, [noteId]);
   }
 }
 

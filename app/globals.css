@@ -41,3 +41,12 @@ body {
   font-family: var(--font-sans);
   font-weight: 500;
 }
+
+@keyframes shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.animate-shrink {
+  animation: shrink 5s linear forwards;
+}

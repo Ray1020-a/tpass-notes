@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface NoteRow {
@@ -13,7 +13,6 @@ interface NoteRow {
   updated_at: string;
   published: boolean;
   content_type: string;
-  tags: string;
   latest_content?: string;
   file_path?: string;
   file_size?: number;
@@ -34,7 +33,6 @@ interface VersionItem {
 
 interface PanelClientProps {
   initialNotes: NoteRow[];
-  initialTags: string[];
   initialStats: {
     total: number;
     yourNotes: number;
@@ -44,21 +42,17 @@ interface PanelClientProps {
   isAdmin: boolean;
 }
 
-export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }: PanelClientProps) {
+export function PanelClient({ initialNotes, initialStats, isAdmin }: PanelClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [notes, setNotes] = useState(initialNotes);
-  const [tags, setTags] = useState(initialTags);
   const [stats, setStats] = useState(initialStats);
   const [q, setQ] = useState(searchParams.get("q") || "");
-  const [selectedTags, setSelectedTags] = useState<string[]>(searchParams.getAll("tags"));
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState("markdown");
-  const [newTags, setNewTags] = useState<string[]>([]);
   const [detailNoteId, setDetailNoteId] = useState<number | null>(null);
   const [detailNote, setDetailNote] = useState<NoteRow | null>(null);
-  const [detailTags, setDetailTags] = useState<string[]>([]);
   const [detailTitle, setDetailTitle] = useState("");
   const [detailNewCollab, setDetailNewCollab] = useState("");
   const [detailNewCollabName, setDetailNewCollabName] = useState("");
@@ -71,41 +65,38 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     const load = async () => {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
-      for (const tag of selectedTags) params.append("tags", tag);
       router.replace(`/panel?${params.toString()}`);
       const res = await fetch(`/api/notes?${params.toString()}`);
       const data = await res.json();
       setNotes(data.notes || []);
-      setTags(data.tags || []);
       setStats(data.stats || initialStats);
     };
     const timer = window.setTimeout(load, 250);
     return () => window.clearTimeout(timer);
-  }, [q, selectedTags, router, initialStats]);
+  }, [q, router, initialStats]);
 
   const createNote = async () => {
     const res = await fetch("/api/notes", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, contentType, tags: newTags }),
+      body: JSON.stringify({ title, contentType }),
     });
     const data = await res.json();
     if (data.ok) {
       setCreating(false);
       setTitle("");
-      setNewTags([]);
-      if (contentType === "pdf") {
-        window.location.href = `/editor?id=${data.id}`;
-      } else {
-        window.location.href = `/editor?id=${data.id}`;
-      }
+      window.location.href = `/editor?id=${data.id}`;
     }
   };
 
   const togglePublish = async (noteId: number, published: boolean) => {
     const ok = window.confirm(published ? "確定要下架這篇筆記嗎？" : "確定要上架這篇筆記嗎？");
     if (!ok) return;
-    const res = await fetch(`/api/notes/${noteId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ published: !published }) });
+    const res = await fetch(`/api/notes/${noteId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ published: !published }),
+    });
     if (res.ok) {
       setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, published: !published } : note)));
     }
@@ -115,7 +106,6 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     setDetailNoteId(note.id);
     setDetailNote(note);
     setDetailTitle(note.title);
-    setDetailTags(note.tags ? note.tags.split(",").filter(Boolean) : []);
     setFeedback("");
     const res = await fetch(`/api/notes/save?id=${note.id}`);
     const data = await res.json();
@@ -137,24 +127,12 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     }
   };
 
-  const saveDetailTags = async (tagName: string) => {
-    if (!detailNoteId) return;
-    const next = detailTags.includes(tagName)
-      ? detailTags.filter((t) => t !== tagName)
-      : [...detailTags, tagName];
-    setDetailTags(next);
-    setFeedback(next.includes(tagName) ? "標籤已新增" : "標籤已移除");
-    const res = await fetch(`/api/notes/tags`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ noteId: detailNoteId, tags: next }),
-    });
-    if (!res.ok) setFeedback("標籤更新失敗");
-  };
-
   const addDetailCollaborator = async () => {
     if (!detailNoteId || !detailNewCollab.trim()) return;
-    const next = [...detailCollaborators, { email: detailNewCollab.trim(), name: detailNewCollabName.trim() || detailNewCollab.trim() }];
+    const next = [
+      ...detailCollaborators,
+      { email: detailNewCollab.trim(), name: detailNewCollabName.trim() || detailNewCollab.trim() },
+    ];
     const res = await fetch(`/api/notes/${detailNoteId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -206,85 +184,116 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
           ["您上架的筆記", stats.publishedByYou],
           ["您下架的筆記", stats.unpublishedByYou],
         ].map(([label, value]) => (
-          <div key={label as string} className="rounded-2xl border-2 border-foreground bg-primary/10 p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">{(label as string)}</p>
-            <p className="mt-3 text-3xl font-extrabold">{value as number}</p>
+          <div
+            key={label as string}
+            className="rounded-2xl border-2 border-foreground bg-primary/10 p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]"
+          >
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">{label as string}</p>
+            <p className="mt-2 text-3xl font-extrabold">{value as number}</p>
           </div>
         ))}
       </section>
+
       <section className="rounded-2xl border-2 border-foreground bg-accent/10 p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl font-extrabold">管理面板</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{isAdmin ? "您是最高管理員，可管理所有筆記。" : "您可編輯與管理自己的筆記。"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isAdmin ? "您是最高管理員，可管理所有筆記。" : "您可編輯與管理自己的筆記。"}
+            </p>
           </div>
           <div className="flex flex-col gap-3 md:flex-row">
-            <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="搜尋標題或作者" className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]" />
-            <select multiple value={selectedTags} onChange={(event) => setSelectedTags(Array.from(event.target.selectedOptions, (option) => option.value))} className="min-h-10 rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]">
-              {tags.map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-            <button onClick={() => setCreating(true)} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
-              新增筆記
+            <input
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              placeholder="搜尋標題或作者"
+              className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[5px_5px_0_0_var(--color-foreground)] focus:outline-none"
+            />
+            <button
+              onClick={() => setCreating(true)}
+              className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+            >
+              ＋ 新增筆記
             </button>
           </div>
         </div>
       </section>
+
       {creating ? (
-        <div className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
+        <div className="rounded-2xl border-2 border-foreground bg-card p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
           <h2 className="text-xl font-extrabold">新增筆記</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="筆記標題" className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]" />
-            <select value={contentType} onChange={(event) => setContentType(event.target.value)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="筆記標題"
+              className="flex-1 rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[5px_5px_0_0_var(--color-foreground)] focus:outline-none"
+              onKeyDown={(event) => event.key === "Enter" && createNote()}
+            />
+            <select
+              value={contentType}
+              onChange={(event) => setContentType(event.target.value)}
+              className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)]"
+            >
               <option value="markdown">MarkDown</option>
               <option value="pdf">PDF</option>
             </select>
           </div>
-          <div className="mt-3">
-            <label className="text-sm font-semibold">標籤</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <button key={tag} onClick={() => setNewTags((prev) => prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag])} className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${newTags.includes(tag) ? "bg-primary text-background" : "bg-card"}`}>
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button onClick={createNote} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)]">建立</button>
-            <button onClick={() => setCreating(false)} className="rounded-xl border-2 border-foreground bg-accent/10 px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">取消</button>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={createNote}
+              disabled={!title.trim()}
+              className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)] disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_0_var(--color-foreground)]"
+            >
+              建立
+            </button>
+            <button
+              onClick={() => setCreating(false)}
+              className="rounded-xl border-2 border-foreground bg-card px-5 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+            >
+              取消
+            </button>
           </div>
         </div>
       ) : null}
+
       <section className="grid gap-4">
         {notes.map((note) => (
-          <article key={note.id} className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <article
+            key={note.id}
+            className="group rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]"
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <button onClick={() => openDetail(note)} className="flex-1 text-left">
-                <div className="flex flex-wrap gap-2">
-                  {note.tags ? note.tags.split(",").filter(Boolean).map((tag: string) => (
-                    <span key={tag} className="rounded-md border-2 border-foreground bg-muted px-2 py-0.5 font-mono text-[11px] font-bold">{tag}</span>
-                  )) : null}
-                </div>
-                <h2 className="mt-3 text-xl font-extrabold">{note.title}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h2 className="text-xl font-extrabold group-hover:text-primary transition-colors">{note.title}</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground">
                   {note.content_type === "pdf"
-                    ? `檔案大小：${formatFileSize(note.file_size)}`
-                    : `字數：${getWordCount(note.latest_content)}`
+                    ? `📄 PDF · ${formatFileSize(note.file_size)}`
+                    : `📝 MD · ${getWordCount(note.latest_content)} 字`
                   }
-                  {isAdmin ? ` · 擁有者：${note.owner_name}` : ""}
+                  {isAdmin ? ` · ${note.owner_name}` : ""}
                   <span className="ml-2">更新：{new Date(note.updated_at).toLocaleString("zh-TW")}</span>
                 </p>
               </button>
               <div className="flex items-center gap-2">
-                <Link href={`/read?id=${note.id}`} className="rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+                <Link
+                  href={`/read?id=${note.id}`}
+                  className="rounded-xl border-2 border-foreground bg-accent/10 px-4 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+                >
                   閱讀
                 </Link>
-                <Link href={`/editor?id=${note.id}`} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+                <Link
+                  href={`/editor?id=${note.id}`}
+                  className="rounded-xl border-2 border-foreground bg-primary px-4 py-2.5 text-sm font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+                >
                   編輯
                 </Link>
-                <button onClick={() => togglePublish(note.id, note.published)} className={`rounded-xl border-2 border-foreground px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] ${note.published ? "bg-secondary" : "bg-destructive text-background"}`}>
+                <button
+                  onClick={() => togglePublish(note.id, note.published)}
+                  className={`rounded-xl border-2 border-foreground px-4 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)] ${
+                    note.published ? "bg-secondary text-foreground" : "bg-destructive text-background"
+                  }`}
+                >
                   {note.published ? "下架" : "上架"}
                 </button>
               </div>
@@ -294,74 +303,131 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
       </section>
 
       {detailNoteId && detailNote ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setDetailNoteId(null)}>
-          <div className="w-full max-w-lg space-y-4 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-xl font-extrabold">筆記詳情</h2>
-            {feedback ? <p className="text-sm text-muted-foreground">{feedback}</p> : null}
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4"
+          onClick={() => setDetailNoteId(null)}
+        >
+          <div
+            className="w-full max-w-lg space-y-5 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-extrabold">筆記詳情</h2>
+              <span className="rounded-md border-2 border-foreground bg-muted px-2.5 py-1 font-mono text-xs font-bold">
+                {detailNote.content_type === "pdf" ? "PDF" : "MD"}
+              </span>
+            </div>
+            {feedback ? (
+              <p className="rounded-lg border-2 border-foreground bg-accent/10 px-3 py-2 text-sm font-medium text-muted-foreground">{feedback}</p>
+            ) : null}
 
             <div>
               <label className="text-sm font-semibold">標題</label>
               <div className="mt-1 flex gap-2">
-                <input value={detailTitle} onChange={(event) => setDetailTitle(event.target.value)} className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2" />
-                <button onClick={saveDetail} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">儲存</button>
+                <input
+                  value={detailTitle}
+                  onChange={(event) => setDetailTitle(event.target.value)}
+                  className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[4px_4px_0_0_var(--color-foreground)] focus:outline-none"
+                />
+                <button
+                  onClick={saveDetail}
+                  className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 text-sm font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
+                >
+                  儲存
+                </button>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold">類型</label>
-              <p className="mt-1 text-sm text-muted-foreground">{detailNote.content_type === "pdf" ? "PDF" : "MarkDown"}</p>
-              <div className="mt-2 flex gap-2">
-                <Link href={`/editor?id=${detailNote.id}`} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">
+              <label className="text-sm font-semibold">編輯</label>
+              <div className="mt-2">
+                <Link
+                  href={`/editor?id=${detailNote.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border-2 border-foreground bg-primary px-4 py-2.5 text-sm font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+                >
                   {detailNote.content_type === "pdf" ? "上傳新版本" : "進入編輯器"}
+                  <span className="text-base">→</span>
                 </Link>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold">標籤</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <button key={tag} onClick={() => saveDetailTags(tag)} className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${detailTags.includes(tag) ? "bg-primary text-background" : "bg-card"}`}>
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
               <label className="text-sm font-semibold">協作者</label>
-              <div className="mt-1 flex gap-2">
-                <input value={detailNewCollabName} onChange={(event) => setDetailNewCollabName(event.target.value)} placeholder="姓名" className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm" />
-                <input value={detailNewCollab} onChange={(event) => setDetailNewCollab(event.target.value)} placeholder="email" className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm" />
-                <button onClick={addDetailCollaborator} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">新增</button>
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={detailNewCollabName}
+                  onChange={(event) => setDetailNewCollabName(event.target.value)}
+                  placeholder="姓名"
+                  className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[4px_4px_0_0_var(--color-foreground)] focus:outline-none"
+                />
+                <input
+                  value={detailNewCollab}
+                  onChange={(event) => setDetailNewCollab(event.target.value)}
+                  placeholder="email"
+                  className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 focus:-translate-y-0.5 focus:shadow-[4px_4px_0_0_var(--color-foreground)] focus:outline-none"
+                  onKeyDown={(event) => event.key === "Enter" && addDetailCollaborator()}
+                />
+                <button
+                  onClick={addDetailCollaborator}
+                  className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 text-sm font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
+                >
+                  新增
+                </button>
               </div>
-              <ul className="mt-2 space-y-1">
-                {detailCollaborators.map((c) => (
-                  <li key={c.email} className="rounded-lg border-2 border-foreground bg-muted px-3 py-1 text-sm">
-                    {c.name || c.email} <span className="text-muted-foreground">({c.email})</span>
-                  </li>
-                ))}
-              </ul>
+              {detailCollaborators.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {detailCollaborators.map((c) => (
+                    <li
+                      key={c.email}
+                      className="flex items-center justify-between rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm"
+                    >
+                      <span>
+                        <span className="font-semibold">{c.name || c.email}</span>
+                        <span className="ml-1 text-muted-foreground">({c.email})</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">尚無協作者</p>
+              )}
             </div>
 
             <div>
-              <label className="text-sm font-semibold">版本選擇</label>
-              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
-                {detailVersions.map((v) => (
-                  <li key={v.version_number} className="flex items-center justify-between rounded-lg border-2 border-foreground bg-muted px-3 py-2 text-sm">
-                    <div>
-                      <span className="font-bold">版本 {v.version_number}</span>
-                      <div className="text-muted-foreground">{v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}</div>
-                    </div>
-                    <button onClick={() => deleteDetailVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-destructive px-2 py-1 text-xs font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">
-                      刪除
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <label className="text-sm font-semibold">版本歷史</label>
+              {detailVersions.length > 0 ? (
+                <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+                  {detailVersions.map((v) => (
+                    <li
+                      key={v.version_number}
+                      className="flex items-center justify-between rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <span className="font-bold">版本 {v.version_number}</span>
+                        <div className="text-xs text-muted-foreground">
+                          {v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deleteDetailVersion(v.version_number)}
+                        className="rounded-lg border-2 border-foreground bg-destructive px-2.5 py-1 text-xs font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
+                      >
+                        刪除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">尚無版本紀錄</p>
+              )}
             </div>
 
-            <button onClick={() => setDetailNoteId(null)} className="w-full rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">關閉</button>
+            <button
+              onClick={() => setDetailNoteId(null)}
+              className="w-full rounded-xl border-2 border-foreground bg-card px-4 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+            >
+              關閉
+            </button>
           </div>
         </div>
       ) : null}
