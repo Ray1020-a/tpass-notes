@@ -315,11 +315,6 @@ export default function EditorPage() {
                   <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
                   <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。</p>
                 </div>
-              {isMobile ? (
-                <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
-                  <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。</p>
-                </div>
               ) : mode === "preview" ? (
                 <div className="min-h-[60vh] rounded-xl border-2 border-foreground p-4">
                   <article className="prose prose-sm max-w-none">
