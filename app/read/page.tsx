@@ -50,6 +50,9 @@ export default async function ReadPage({ searchParams }: { searchParams?: Promis
 
   const versions = await query<VersionRow>(`SELECT * FROM note_versions WHERE note_id = $1 ORDER BY version_number DESC, created_at DESC`, [note.id]);
   const latestVersion = versions.rows[0];
+  const pdfFile = note.content_type === "pdf"
+    ? versions.rows.find((v) => v.file_path)?.file_path
+    : null;
 
   return (
     <div className="space-y-6">
@@ -65,8 +68,13 @@ export default async function ReadPage({ searchParams }: { searchParams?: Promis
           <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">版本資訊</h2>
           <p className="mt-2 text-sm text-muted-foreground">本篇筆記目前共有 {versions.rows.length} 個版本，最新版本由 {latestVersion?.created_by_name || note.owner_name} 建立。</p>
         </div>
-        {note.content_type === "pdf" && latestVersion?.file_path ? (
-          <PdfViewer fileUrl={latestVersion.file_path} fileName={note.title} />
+        {pdfFile ? (
+          <PdfViewer fileUrl={pdfFile} fileName={note.title} />
+        ) : note.content_type === "pdf" ? (
+          <div className="rounded-xl border-2 border-dashed border-foreground bg-muted p-8 text-center">
+            <p className="text-lg font-bold">尚無 PDF 檔案</p>
+            <p className="mt-1 text-sm text-muted-foreground">此筆記尚無已上傳的 PDF 版本。</p>
+          </div>
         ) : (
           <article className="prose prose-sm max-w-none">
             <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]}>

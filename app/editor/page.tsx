@@ -160,7 +160,6 @@ export default function EditorPage() {
       if (res.ok) {
         setContentType("pdf");
         setFeedback("PDF 已上傳並附加到筆記");
-        await saveContent(true);
       } else { setFeedback(data.error || "PDF 上傳失敗"); }
     } finally { setUploading(false); }
   };
