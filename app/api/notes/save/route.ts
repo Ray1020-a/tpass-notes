@@ -66,6 +66,8 @@ export async function GET(request: Request) {
 
   const versionsResult = await query<VersionRow>(`SELECT id, version_number, content, file_path, file_size, mime_type, created_at, created_by_name, created_by_email, created_by_sub FROM note_versions WHERE note_id = $1 ORDER BY version_number DESC, created_at DESC`, [id]);
   const collaboratorsResult = await query<CollaboratorRow>(`SELECT email, name FROM note_collaborators WHERE note_id = $1 ORDER BY name, email`, [id]);
+  const noteTagsResult = await query<{ name: string }>(`SELECT t.name FROM tags t JOIN note_tags nt ON nt.tag_id = t.id WHERE nt.note_id = $1 ORDER BY t.name`, [id]);
+  const allTagsResult = await query<{ name: string }>(`SELECT name FROM tags ORDER BY name`);
 
   return NextResponse.json({
     content: note.latest_content || "",
@@ -74,6 +76,8 @@ export async function GET(request: Request) {
     published: note.published,
     versions: versionsResult.rows,
     collaborators: collaboratorsResult.rows,
+    tags: noteTagsResult.rows.map((r) => r.name),
+    allTags: allTagsResult.rows.map((r) => r.name),
     sessionEmail: session.email,
     sessionSub: session.sub,
   });

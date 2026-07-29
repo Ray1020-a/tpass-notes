@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TagMultiSelect } from "@/components/tag-multi-select";
 
 type VersionItem = {
   id?: number;
@@ -48,6 +49,8 @@ export default function EditorPage() {
   const [forbidden, setForbidden] = useState(false);
   const [showTypeSwitch, setShowTypeSwitch] = useState(false);
   const [pendingType, setPendingType] = useState<"markdown" | "pdf" | null>(null);
+  const [noteTags, setNoteTags] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   useEffect(() => {
     const updateViewport = () => setIsMobile(window.innerWidth < 768);
@@ -68,6 +71,8 @@ export default function EditorPage() {
       setPublished(data.published !== false);
       setVersions(data.versions || []);
       setCollaborators(data.collaborators || []);
+      setNoteTags(data.tags || []);
+      setAllTags(data.allTags || []);
       setSessionEmail(data.sessionEmail || "");
       setSessionSub(data.sessionSub || "");
     };
@@ -359,6 +364,21 @@ export default function EditorPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+            <h2 className="text-lg font-extrabold">標籤</h2>
+            <div className="mt-3">
+              <TagMultiSelect tags={allTags} selected={noteTags} onChange={async (next) => {
+                setNoteTags(next);
+                if (!id) return;
+                await fetch("/api/notes/tags", {
+                  method: "POST", headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ noteId: id, tags: next }),
+                });
+                setFeedback("標籤已更新");
+              }} />
+            </div>
           </section>
 
           <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
