@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getSession, getPermissionEntry } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getSession, getPermissionEntry, loginUrlFor } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ type TagRow = {
 export default async function HomePage({ searchParams }: { searchParams?: Promise<{ q?: string; tags?: string | string[] }> }) {
   await initDb();
   const session = await getSession();
+  if (!session) redirect(loginUrlFor("/"));
+
   const permission = getPermissionEntry(session);
 
   const params = await searchParams;

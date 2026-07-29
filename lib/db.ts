@@ -78,19 +78,7 @@ export async function initDb() {
     );
   `);
 
-  const noteCount = await pool.query(`SELECT COUNT(*)::int AS count FROM notes`);
-  if (noteCount.rows[0].count === 0) {
-    const inserted = await pool.query(`
-      INSERT INTO notes (title, content_type, owner_email, owner_name, published, latest_content)
-      VALUES ('數學補充筆記', 'markdown', '11454@tschool.tp.edu.tw', '王大貴', true, '# 數學補充筆記\n\n- 這是一份示範筆記\n- 可以在管理面板中編輯與版本化')
-      RETURNING id;
-    `);
-    const noteId = inserted.rows[0].id as number;
-    await pool.query(`
-      INSERT INTO note_versions (note_id, version_number, content, created_by_email, created_by_name)
-      VALUES ($1, 1, $2, $3, $4)
-    `, [noteId, '# 數學補充筆記\n\n- 這是一份示範筆記\n- 可以在管理面板中編輯與版本化', '11454@tschool.tp.edu.tw', '王大貴']);
-  }
+
 }
 
 export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]) {
