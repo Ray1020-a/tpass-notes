@@ -67,6 +67,8 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
   const [detailVersions, setDetailVersions] = useState<VersionItem[]>([]);
   const [feedback, setFeedback] = useState("");
   const [sessionEmail, setSessionEmail] = useState("");
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -196,6 +198,40 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     }
   };
 
+  const addTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    if (tags.includes(name)) { setFeedback("標籤已存在"); return; }
+    const res = await fetch(`/api/notes/tags/manage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setTags((prev) => [...prev, name].sort());
+      setNewTagName("");
+      setFeedback(`標籤「${name}」已新增`);
+    } else {
+      setFeedback(data.error || "新增失敗");
+    }
+  };
+
+  const deleteTag = async (name: string) => {
+    const res = await fetch(`/api/notes/tags/manage`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setTags((prev) => prev.filter((t) => t !== name));
+      setFeedback(`標籤「${name}」已移除`);
+    } else {
+      setFeedback(data.error || `無法移除：${data.reason || ""}`);
+    }
+  };
+
   const getWordCount = (content?: string) => {
     if (!content) return 0;
     return content.replace(/\s/g, "").length;
@@ -248,6 +284,12 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
               className="rounded-xl border-2 border-foreground bg-primary px-5 py-2.5 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
             >
               ＋ 新增筆記
+            </button>
+            <button
+              onClick={() => setShowTagManager(true)}
+              className="rounded-xl border-2 border-foreground bg-card px-5 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]"
+            >
+              管理標籤
             </button>
           </div>
         </div>
@@ -490,6 +532,38 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             >
               關閉
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showTagManager ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setShowTagManager(false)}>
+          <div className="w-full max-w-md space-y-4 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+            <h2 className="text-xl font-extrabold">管理標籤</h2>
+            {feedback ? <p className="rounded-lg border-2 border-foreground bg-accent/10 px-3 py-2 text-sm font-medium text-muted-foreground">{feedback}</p> : null}
+            <div className="flex gap-2">
+              <input
+                value={newTagName}
+                onChange={(event) => setNewTagName(event.target.value)}
+                placeholder="新標籤名稱"
+                className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[2px_2px_0_0_var(--color-foreground)]"
+                onKeyDown={(event) => event.key === "Enter" && addTag()}
+              />
+              <button onClick={addTag} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">新增</button>
+            </div>
+            <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+              {tags.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">尚無標籤</p>
+              ) : (
+                tags.map((tag) => (
+                  <li key={tag} className="flex items-center justify-between rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm">
+                    <span className="font-semibold">{tag}</span>
+                    <button onClick={() => deleteTag(tag)} className="rounded-lg border-2 border-foreground bg-destructive px-2.5 py-1 text-xs font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">刪除</button>
+                  </li>
+                ))
+              )}
+            </ul>
+            <button onClick={() => setShowTagManager(false)} className="w-full rounded-xl border-2 border-foreground bg-card px-4 py-2.5 font-bold shadow-[3px_3px_0_0_var(--color-foreground)]">關閉</button>
           </div>
         </div>
       ) : null}
