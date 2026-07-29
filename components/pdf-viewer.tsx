@@ -33,8 +33,8 @@ export function PdfViewer({ fileUrl, fileName }: { fileUrl: string; fileName?: s
           </button>
         </div>
       </div>
-      <div className={`${fullscreen ? "fixed inset-0 z-[200] bg-background p-4" : ""}`}>
-        <div className={`${fullscreen ? "h-full w-full" : "min-h-[70vh]"} rounded-xl border-2 border-foreground bg-card overflow-hidden`}>
+        <div className={`${fullscreen ? "fixed inset-0 z-[200] bg-background p-4" : ""}`}>
+        <div className={`${fullscreen ? "h-full w-full" : "h-[80vh]"} rounded-xl border-2 border-foreground bg-card overflow-hidden`}>
           <iframe
             src={apiUrl}
             className="h-full w-full"

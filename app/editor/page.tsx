@@ -203,11 +203,9 @@ export default function EditorPage() {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">← 返回面板</button>
           <button onClick={() => setShowVersions(true)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">疊代</button>
-          {contentType === "markdown" ? (
-            <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
-              {saving ? "儲存中…" : "儲存"}
-            </button>
-          ) : null}
+          <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+            {saving ? "儲存中…" : "儲存"}
+          </button>
           <button onClick={() => { const next = !published; setPublished(next); void saveContent(false); }} className="rounded-xl border-2 border-foreground bg-secondary px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
             {published ? "已上架" : "草稿"}
           </button>
