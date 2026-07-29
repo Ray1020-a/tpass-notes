@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -28,6 +28,7 @@ export default function EditorPage() {
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("id");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState("新筆記");
   const [content, setContent] = useState("# 新筆記\n\n請在這裡輸入內容。\n");
   const [contentType, setContentType] = useState<"markdown" | "pdf">("markdown");
@@ -184,6 +185,52 @@ export default function EditorPage() {
   const canDeleteVersion = (v: VersionItem) =>
     v.created_by_email === sessionEmail || collaborators.some((c) => c.email === v.created_by_email && c.email === sessionEmail);
 
+  const wrap = (before: string, after: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = content.slice(start, end);
+    const replacement = selected ? `${before}${selected}${after}` : before;
+    setContent(content.slice(0, start) + replacement + content.slice(end));
+    setDirty(true);
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(start + before.length, start + replacement.length); });
+  };
+
+  const insertLine = (prefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = content.lastIndexOf("\n", start - 1) + 1;
+    const line = content.slice(lineStart, content.indexOf("\n", start) !== -1 ? content.indexOf("\n", start) : content.length);
+    const newLine = line.startsWith(prefix) ? line.slice(prefix.length) : prefix + line;
+    setContent(content.slice(0, lineStart) + newLine + content.slice(lineStart + line.length));
+    setDirty(true);
+  };
+
+  const insertImage = () => {
+    const url = prompt("輸入圖片網址：");
+    if (url) wrap(`![${"圖片"}](${url})`, "");
+  };
+
+  const insertLink = () => {
+    const url = prompt("輸入連結網址：");
+    if (url) wrap("[", `](${url})`);
+  };
+
+  const insertTable = () => {
+    const table = "\n| 標題 1 | 標題 2 | 標題 3 |\n| ------ | ------ | ------ |\n| 內容   | 內容   | 內容   |\n";
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    setContent(content.slice(0, pos) + table + content.slice(pos));
+    setDirty(true);
+  };
+
+  const insertCodeBlock = () => {
+    wrap("```\n", "\n```");
+  };
+
   if (forbidden) {
     return (
       <div className="rounded-2xl border-2 border-foreground bg-destructive/10 p-8 shadow-[4px_4px_0_0_var(--color-foreground)]">
@@ -288,9 +335,32 @@ export default function EditorPage() {
 
           {contentType === "markdown" ? (
             <>
-              {isMobile ? null : (
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-xl border-2 border-foreground overflow-hidden shadow-[2px_2px_0_0_var(--color-foreground)]">
+              {isMobile ? null : mode !== "preview" ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-1 rounded-xl border-2 border-foreground bg-muted p-1.5 shadow-[2px_2px_0_0_var(--color-foreground)]">
+                    {(["H1", "H2", "H3", "H4", "H5", "H6"] as const).map((h) => (
+                      <button key={h} onClick={() => insertLine(`${"#".repeat(Number(h[1]))} `)} title={h} className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{h}</button>
+                    ))}
+                    <span className="mx-1 h-5 w-px bg-foreground/20" />
+                    <button onClick={() => wrap("**", "**")} title="粗體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0"><b>B</b></button>
+                    <button onClick={() => wrap("*", "*")} title="斜體" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold italic hover:border-foreground hover:bg-card active:translate-y-0"><i>I</i></button>
+                    <button onClick={() => wrap("~~", "~~")} title="刪除線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold line-through hover:border-foreground hover:bg-card active:translate-y-0">S</button>
+                    <span className="mx-1 h-5 w-px bg-foreground/20" />
+                    <button onClick={() => insertLine("- ")} title="無序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">•</button>
+                    <button onClick={() => insertLine("1. ")} title="有序清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">1.</button>
+                    <button onClick={() => insertLine("- [ ] ")} title="任務清單" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">☐</button>
+                    <span className="mx-1 h-5 w-px bg-foreground/20" />
+                    <button onClick={insertLink} title="連結" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🔗</button>
+                    <button onClick={insertImage} title="圖片" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">🖼</button>
+                    <span className="mx-1 h-5 w-px bg-foreground/20" />
+                    <button onClick={() => wrap("`", "`")} title="行內程式碼" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">&lt;/&gt;</button>
+                    <button onClick={insertCodeBlock} title="程式碼區塊" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">{ }</button>
+                    <button onClick={() => insertLine("> ")} title="引言" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">＂</button>
+                    <button onClick={insertTable} title="表格" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">⊞</button>
+                    <span className="mx-1 h-5 w-px bg-foreground/20" />
+                    <button onClick={() => wrap("\n---\n", "")} title="分隔線" className="rounded-lg border-2 border-transparent px-2.5 py-1 text-xs font-bold hover:border-foreground hover:bg-card active:translate-y-0">—</button>
+                  </div>
+                  <div className="flex rounded-xl border-2 border-foreground overflow-hidden shadow-[2px_2px_0_0_var(--color-foreground)] self-start">
                     {(["edit", "split", "preview"] as const).map((value, i) => (
                       <button
                         key={value}
@@ -305,11 +375,8 @@ export default function EditorPage() {
                       </button>
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground font-bold">
-                    # 標題 · **粗體** · `程式碼`
-                  </span>
                 </div>
-              )}
+              ) : null}
               {isMobile ? (
                 <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
                   <p className="font-bold text-foreground">手機版不支援 Markdown 直接編輯</p>
@@ -322,10 +389,10 @@ export default function EditorPage() {
                   </article>
                 </div>
               ) : mode === "edit" ? (
-                <textarea value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
+                <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <textarea value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
+                  <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
                   <div className="min-h-[60vh] rounded-xl border-2 border-foreground p-4">
                     <article className="prose prose-sm max-w-none">
                       <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
