@@ -6,6 +6,11 @@ import { initDb, query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+function isValidPdf(buffer: Buffer): boolean {
+  const start = buffer.slice(0, 50);
+  return start.includes("%PDF-");
+}
+
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "forbidden" }, { status: 401 });
@@ -46,6 +51,10 @@ export async function POST(request: Request) {
   const destDir = path.join(process.cwd(), "uploads");
   const destPath = path.join(destDir, safeName);
   const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (!isValidPdf(bytes)) {
+    return NextResponse.json({ error: "無效的 PDF 檔案" }, { status: 400 });
+  }
 
   await writeFile(destPath, bytes);
 
