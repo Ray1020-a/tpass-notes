@@ -5,7 +5,8 @@ import { useState } from "react";
 export function PdfViewer({ fileUrl, fileName }: { fileUrl: string; fileName?: string }) {
   const [fullscreen, setFullscreen] = useState(false);
 
-  const apiUrl = `/api/files/${fileUrl.split("/").pop()}`;
+  const fileName_only = fileUrl.split("/").pop();
+  const apiUrl = `/api/files/${fileName_only}#toolbar=0`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -18,13 +19,6 @@ export function PdfViewer({ fileUrl, fileName }: { fileUrl: string; fileName?: s
           <span className="font-semibold text-foreground">{fileName || "PDF 文件"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href={apiUrl}
-            download
-            className="rounded-lg border-2 border-foreground bg-card px-3 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"
-          >
-            下載
-          </a>
           <button
             onClick={() => setFullscreen(!fullscreen)}
             className="rounded-lg border-2 border-foreground bg-card px-3 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[1px_1px_0_0_var(--color-foreground)]"

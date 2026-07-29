@@ -16,6 +16,7 @@ type NoteRow = {
   content_type: string;
   tags: string;
   latest_content?: string;
+  file_size?: number;
 };
 
 type TagRow = {
@@ -33,7 +34,8 @@ export default async function PanelPage() {
     query<NoteRow>(`
       SELECT n.id, n.title, n.owner_name, n.owner_email, n.updated_at, n.created_at,
              n.published, n.content_type, n.latest_content,
-             COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags
+             COALESCE(string_agg(t.name, ',') FILTER (WHERE t.name IS NOT NULL), '') AS tags,
+             (SELECT file_size FROM note_versions WHERE note_id = n.id AND file_path IS NOT NULL ORDER BY version_number DESC LIMIT 1) AS file_size
       FROM notes n
       LEFT JOIN note_tags nt ON nt.note_id = n.id
       LEFT JOIN tags t ON t.id = nt.tag_id

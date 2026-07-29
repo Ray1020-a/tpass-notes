@@ -21,6 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="${safeName}"`,
+        "Content-Security-Policy": "sandbox",
         "Cache-Control": "private, no-cache",
       },
     });
