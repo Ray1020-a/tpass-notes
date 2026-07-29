@@ -210,13 +210,6 @@ export default function EditorPage() {
           <span className={`rounded-xl border-2 px-3 py-2 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] ${dirty ? "bg-destructive text-background border-foreground" : "bg-primary text-background border-foreground"}`}>
             {dirty ? "未儲存" : "已儲存"}
           </span>
-          {contentType === "markdown" ? (
-            (["edit", "preview", "split"] as const).map((value) => (
-              <button key={value} onClick={() => setMode(value)} className={`rounded-xl border-2 border-foreground px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] ${mode === value ? "bg-primary text-background" : "bg-card"}`}>
-                {value === "edit" ? "全編輯" : value === "preview" ? "全預覽" : "分欄"}
-              </button>
-            ))
-          ) : null}
         </div>
       </div>
 
@@ -295,9 +288,33 @@ export default function EditorPage() {
 
           {contentType === "markdown" ? (
             <>
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <span>格式提示：# 標題、- 清單、**粗體**、```程式碼</span>
-              </div>
+              {isMobile ? null : (
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-xl border-2 border-foreground overflow-hidden shadow-[2px_2px_0_0_var(--color-foreground)]">
+                    {(["edit", "split", "preview"] as const).map((value, i) => (
+                      <button
+                        key={value}
+                        onClick={() => setMode(value)}
+                        className={`px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                          mode === value
+                            ? "bg-primary text-background"
+                            : "bg-card text-foreground hover:bg-muted"
+                        } ${i > 0 ? "border-l-2 border-foreground" : ""}`}
+                      >
+                        {value === "edit" ? "編輯" : value === "preview" ? "預覽" : "分欄"}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    # 標題 · **粗體** · `程式碼`
+                  </span>
+                </div>
+              )}
+              {isMobile ? (
+                <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
+                  <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。</p>
+                </div>
               {isMobile ? (
                 <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
                   <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
