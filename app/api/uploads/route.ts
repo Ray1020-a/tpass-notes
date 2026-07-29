@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import path from "path";
 import { getSession } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+function isValidPdf(buffer: Buffer): boolean {
+  return buffer.slice(0, 5).toString() === "%PDF-";
+}
+
+const SAFE_NAME_RE = /^[a-zA-Z0-9._-]+$/;
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -14,19 +20,38 @@ export async function POST(request: Request) {
   const file = formData.get("file") as File | null;
   const noteId = Number(formData.get("noteId"));
   if (!file || !Number.isInteger(noteId)) return NextResponse.json({ error: "invalid upload" }, { status: 400 });
-  if (file.size > 20 * 1024 * 1024) return NextResponse.json({ error: "file too large" }, { status: 413 });
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const destPath = path.join(process.cwd(), "public", "uploads", `${Date.now()}-${safeName}`);
+
+  if (file.size > 20 * 1024 * 1024) {
+    return NextResponse.json({ error: "檔案過大，限制 20MB" }, { status: 413 });
+  }
+
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    return NextResponse.json({ error: "僅接受 PDF 檔案" }, { status: 400 });
+  }
 
   const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (!isValidPdf(bytes)) {
+    return NextResponse.json({ error: "無效的 PDF 檔案" }, { status: 400 });
+  }
+
+  const safeNameBase = path.parse(file.name).name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
+  const safeName = `${Date.now()}-${safeNameBase}.pdf`;
+  const destDir = path.join(process.cwd(), "public", "uploads");
+  const destPath = path.join(destDir, safeName);
+
   await writeFile(destPath, bytes);
+
   await initDb();
   const versionResult = await query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM note_versions WHERE note_id = $1`, [noteId]);
   const version = versionResult.rows[0].count + 1;
+
   await query(`
-    INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-  `, [noteId, version, `/uploads/${path.basename(destPath)}`, file.size, file.type || "application/pdf", session.email, session.name]);
-  await query(`UPDATE notes SET content_type = 'pdf', updated_at = NOW() WHERE id = $2`, [noteId]);
-  return NextResponse.json({ ok: true, path: `/uploads/${path.basename(destPath)}` });
+    INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name, created_by_sub)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  `, [noteId, version, `/uploads/${safeName}`, file.size, "application/pdf", session.email, session.name, session.sub]);
+
+  await query(`UPDATE notes SET content_type = 'pdf', updated_at = NOW() WHERE id = $1`, [noteId]);
+
+  return NextResponse.json({ ok: true, path: `/uploads/${safeName}` });
 }

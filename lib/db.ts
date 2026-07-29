@@ -33,11 +33,13 @@ export async function initDb() {
       content_type TEXT NOT NULL DEFAULT 'markdown',
       owner_email TEXT NOT NULL,
       owner_name TEXT NOT NULL,
+      owner_sub TEXT DEFAULT '',
       published BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
       latest_content TEXT DEFAULT ''
     );
+    ALTER TABLE notes ADD COLUMN IF NOT EXISTS owner_sub TEXT DEFAULT '';
   `);
 
   await pool.query(`
@@ -59,8 +61,12 @@ export async function initDb() {
       mime_type TEXT,
       created_at TIMESTAMP DEFAULT NOW(),
       created_by_email TEXT NOT NULL,
-      created_by_name TEXT NOT NULL
+      created_by_name TEXT NOT NULL,
+      created_by_sub TEXT DEFAULT ''
     );
+    ALTER TABLE note_versions ADD COLUMN IF NOT EXISTS created_by_sub TEXT DEFAULT '';
+    ALTER TABLE note_versions ADD COLUMN IF NOT EXISTS created_by_email TEXT DEFAULT '';
+    ALTER TABLE note_versions ADD COLUMN IF NOT EXISTS created_by_name TEXT DEFAULT '';
   `);
 
   await pool.query(`

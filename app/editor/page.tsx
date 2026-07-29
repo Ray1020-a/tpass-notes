@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type VersionItem = {
+  id?: number;
   version_number: number;
   content: string;
   file_path?: string;
@@ -13,6 +14,8 @@ type VersionItem = {
   mime_type?: string;
   created_at: string;
   created_by_name: string;
+  created_by_email: string;
+  created_by_sub?: string;
 };
 
 type CollaboratorItem = {
@@ -38,6 +41,11 @@ export default function EditorPage() {
   const [newCollaboratorName, setNewCollaboratorName] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showVersions, setShowVersions] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [sessionEmail, setSessionEmail] = useState("");
+  const [sessionSub, setSessionSub] = useState("");
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     const updateViewport = () => setIsMobile(window.innerWidth < 768);
@@ -50,6 +58,10 @@ export default function EditorPage() {
     const load = async () => {
       if (!id) return;
       const res = await fetch(`/api/notes/save?id=${id}`);
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
       const data = await res.json();
       setTitle(data.title || "新筆記");
       setContent(data.content || "# 新筆記\n\n請在這裡輸入內容。\n");
@@ -57,6 +69,8 @@ export default function EditorPage() {
       setPublished(data.published !== false);
       setVersions(data.versions || []);
       setCollaborators(data.collaborators || []);
+      setSessionEmail(data.sessionEmail || "");
+      setSessionSub(data.sessionSub || "");
     };
     load();
   }, [id]);
@@ -76,11 +90,13 @@ export default function EditorPage() {
       }
       if (data.ok && Array.isArray(data.versions)) {
         setVersions(data.versions);
+        setSessionEmail(data.sessionEmail || sessionEmail);
+        setSessionSub(data.sessionSub || sessionSub);
       }
     } finally {
       setSaving(false);
     }
-  }, [content, contentType, id, published, title]);
+  }, [content, contentType, id, published, title, sessionEmail, sessionSub]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -114,9 +130,27 @@ export default function EditorPage() {
       if (res.ok) {
         setContent(data.content || "");
         setFeedback(`已回復到版本 ${versionNumber}`);
+        setShowVersions(false);
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteVersion = async (versionNumber: number) => {
+    if (!id) return;
+    if (!window.confirm(`確定要刪除版本 ${versionNumber} 嗎？`)) return;
+    const res = await fetch(`/api/notes/save`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, versionNumber }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setVersions((prev) => prev.filter((v) => v.version_number !== versionNumber));
+      setFeedback(`已刪除版本 ${versionNumber}`);
+    } else {
+      setFeedback(data.error || "刪除失敗");
     }
   };
 
@@ -172,63 +206,118 @@ export default function EditorPage() {
 
   const preview = useMemo(() => content, [content]);
 
+  const canDeleteVersion = (v: VersionItem) => {
+    return v.created_by_email === sessionEmail || collaborators.some((c) => c.email === v.created_by_email && c.email === sessionEmail);
+  };
+
+  if (forbidden) {
+    return (
+      <div className="rounded-2xl border-2 border-foreground bg-destructive/10 p-8 shadow-[4px_4px_0_0_var(--color-foreground)]">
+        <h1 className="text-2xl font-extrabold">權限不足</h1>
+        <p className="mt-3">您沒有編輯此筆記的權限。</p>
+        <button onClick={() => router.push("/panel")} className="mt-6 rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+          返回面板
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-foreground bg-accent/10 p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[oklch(0.46_0.15_250)]">協作編輯器</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">協作編輯器</p>
           <h1 className="text-2xl font-extrabold">{title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">← 返回面板</button>
-          <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-3 py-2 font-semibold text-[oklch(0.99_0_0)] shadow-[3px_3px_0_0_var(--color-foreground)]">{saving ? "儲存中…" : "儲存"}</button>
-          <button onClick={() => {
-            const next = !published;
-            setPublished(next);
-            void saveContent(false);
-          }} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.05_60)] px-3 py-2 font-semibold">
+          <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">← 返回面板</button>
+          <button onClick={() => setShowVersions(true)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">疊代</button>
+          <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+            {saving ? "儲存中…" : "儲存"}
+          </button>
+          <button onClick={() => { const next = !published; setPublished(next); void saveContent(false); }} className="rounded-xl border-2 border-foreground bg-secondary px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
             {published ? "已上架" : "草稿"}
           </button>
           {(["edit", "preview", "split"] as const).map((value) => (
-            <button key={value} onClick={() => setMode(value)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+            <button key={value} onClick={() => setMode(value)} className={`rounded-xl border-2 border-foreground px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] ${mode === value ? "bg-primary text-background" : "bg-card"}`}>
               {value === "edit" ? "全編輯" : value === "preview" ? "全預覽" : "分欄"}
             </button>
           ))}
         </div>
       </div>
 
+      {showVersions ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setShowVersions(false)}>
+          <div className="w-full max-w-lg rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+            <h2 className="text-xl font-extrabold">版本疊代</h2>
+            <p className="mt-1 text-sm text-muted-foreground">選擇要回復的版本，或刪除不需要的版本。</p>
+            <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+              {versions.map((v) => (
+                <li key={v.version_number} className={`rounded-xl border-2 p-3 text-sm ${selectedVersion === v.version_number ? "border-primary bg-primary/10" : "border-foreground bg-muted"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <button onClick={() => setSelectedVersion(v.version_number)} className="flex items-center gap-2">
+                      <span className={`inline-block h-4 w-4 rounded-full border-2 ${selectedVersion === v.version_number ? "border-primary bg-primary" : "border-foreground"}`} />
+                      <span className="font-bold">版本 {v.version_number}</span>
+                    </button>
+                    <div className="flex gap-1">
+                      <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-semibold shadow-[2px_2px_0_0_var(--color-foreground)]">
+                        回復
+                      </button>
+                      {canDeleteVersion(v) ? (
+                        <button onClick={() => void deleteVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-destructive px-2 py-1 text-xs font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">
+                          刪除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-muted-foreground">{v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}</div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => { setShowVersions(false); setSelectedVersion(null); }} className="rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+                取消
+              </button>
+              <button onClick={() => { if (selectedVersion) void restoreVersion(selectedVersion); }} disabled={!selectedVersion} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] disabled:opacity-40">
+                回復到此版本
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
-        <div className="space-y-4 rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+        <div className="space-y-4 rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
           <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-            <input value={title} onChange={(event) => setTitle(event.target.value)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2" placeholder="筆記標題" />
-            <select value={contentType} onChange={(event) => setContentType(event.target.value as "markdown" | "pdf")} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2">
+            <input value={title} onChange={(event) => setTitle(event.target.value)} className="rounded-xl border-2 border-foreground px-3 py-2" placeholder="筆記標題" />
+            <select value={contentType} onChange={(event) => setContentType(event.target.value as "markdown" | "pdf")} className="rounded-xl border-2 border-foreground px-3 py-2">
               <option value="markdown">Markdown</option>
               <option value="pdf">PDF</option>
             </select>
           </div>
-          {feedback ? <p className="text-sm text-[oklch(0.5_0.012_264)]">{feedback}</p> : null}
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[oklch(0.5_0.012_264)]">
+          {feedback ? <p className="text-sm text-muted-foreground">{feedback}</p> : null}
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <span>格式提示：# 標題、- 清單、**粗體**、```程式碼</span>
           </div>
           {isMobile ? (
-            <div className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] p-5 text-sm text-[oklch(0.5_0.012_264)]">
-              <p className="font-semibold text-[oklch(0.21_0.01_264)]">手機版不支援 Markdown 直接編輯</p>
+            <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
               <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。您仍可查看版本、協作者與上傳 PDF。</p>
             </div>
           ) : mode === "preview" ? (
-            <div className="min-h-[60vh] rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-4">
+            <div className="min-h-[60vh] rounded-xl border-2 border-foreground p-4">
               <article className="prose prose-sm max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
+                <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
               </article>
             </div>
           ) : mode === "edit" ? (
-            <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-4 font-mono" />
+            <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-4 font-mono" />
-              <div className="min-h-[60vh] rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-4">
+              <textarea value={content} onChange={(event) => setContent(event.target.value)} className="min-h-[60vh] w-full rounded-xl border-2 border-foreground p-4 font-mono" />
+              <div className="min-h-[60vh] rounded-xl border-2 border-foreground p-4">
                 <article className="prose prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
+                  <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]}>{preview}</ReactMarkdown>
                 </article>
               </div>
             </div>
@@ -236,46 +325,51 @@ export default function EditorPage() {
         </div>
 
         <div className="space-y-4">
-          <section className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+          <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
             <h2 className="text-lg font-extrabold">PDF 上傳</h2>
             <form onSubmit={uploadPdf} className="mt-3 space-y-3">
-              <input type="file" accept="application/pdf" onChange={(event) => setPdfFile(event.target.files?.[0] || null)} className="w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] p-2" />
-              <button type="submit" className="w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-3 py-2 font-semibold text-[oklch(0.99_0_0)]">
+              <input type="file" accept="application/pdf" onChange={(event) => setPdfFile(event.target.files?.[0] || null)} className="w-full rounded-xl border-2 border-foreground p-2" />
+              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
                 {uploading ? "上傳中…" : "上傳 PDF（20MB 限制）"}
               </button>
             </form>
           </section>
 
-          <section className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+          <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
             <h2 className="text-lg font-extrabold">協作者</h2>
             <form onSubmit={addCollaborator} className="mt-3 space-y-2">
-              <input value={newCollaboratorName} onChange={(event) => setNewCollaboratorName(event.target.value)} placeholder="姓名" className="w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2" />
-              <input value={newCollaborator} onChange={(event) => setNewCollaborator(event.target.value)} placeholder="email" className="w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2" />
-              <button type="submit" className="w-full rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] px-3 py-2 font-semibold">新增協作者</button>
+              <input value={newCollaboratorName} onChange={(event) => setNewCollaboratorName(event.target.value)} placeholder="姓名" className="w-full rounded-xl border-2 border-foreground px-3 py-2" />
+              <input value={newCollaborator} onChange={(event) => setNewCollaborator(event.target.value)} placeholder="email" className="w-full rounded-xl border-2 border-foreground px-3 py-2" />
+              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">新增協作者</button>
             </form>
             <ul className="mt-3 space-y-2">
-              {collaborators.map((collaborator) => (
-                <li key={collaborator.email} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.005_250)] px-3 py-2 text-sm">
-                  {collaborator.name || collaborator.email}
-                  <div className="text-[oklch(0.5_0.012_264)]">{collaborator.email}</div>
+              {collaborators.map((c) => (
+                <li key={c.email} className="rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm">
+                  {c.name || c.email}
+                  <div className="text-muted-foreground">{c.email}</div>
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+          <section className="rounded-2xl border-2 border-foreground bg-card p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
             <h2 className="text-lg font-extrabold">版本歷史</h2>
             <ul className="mt-3 space-y-2">
-              {versions.map((version) => (
-                <li key={version.version_number} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.005_250)] px-3 py-2 text-sm">
+              {versions.slice(0, 5).map((v) => (
+                <li key={v.version_number} className="rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <span>版本 {version.version_number}</span>
-                    <button onClick={() => void restoreVersion(version.version_number)} className="rounded-lg border-2 border-[oklch(0.21_0.01_264)] px-2 py-1 text-xs font-semibold">回復</button>
+                    <span>版本 {v.version_number}</span>
+                    <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-semibold shadow-[2px_2px_0_0_var(--color-foreground)]">回復</button>
                   </div>
-                  <div className="mt-1 text-[oklch(0.5_0.012_264)]">{version.created_by_name} · {new Date(version.created_at).toLocaleString("zh-TW")}</div>
+                  <div className="mt-1 text-muted-foreground">{v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}</div>
                 </li>
               ))}
             </ul>
+            {versions.length > 5 ? (
+              <button onClick={() => setShowVersions(true)} className="mt-2 w-full rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+                查看全部 {versions.length} 個版本 →
+              </button>
+            ) : null}
           </section>
         </div>
       </div>

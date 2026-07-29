@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, isAdmin, isModerator } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +9,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const noteId = Number(id);
   if (!Number.isInteger(noteId)) return NextResponse.json({ error: "invalid id" }, { status: 400 });
+
+  await initDb();
+  const noteResult = await query<{ owner_email: string; owner_sub: string }>(`SELECT owner_email, owner_sub FROM notes WHERE id = $1`, [noteId]);
+  if (noteResult.rows.length === 0) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const note = noteResult.rows[0];
+  const isOwner = session.sub === note.owner_sub || session.email === note.owner_email;
+  const collabRes = await query<{ email: string }>(`SELECT email FROM note_collaborators WHERE note_id = $1 AND email = $2`, [noteId, session.email]);
+  const isCollab = collabRes.rows.length > 0;
+
+  if (!isAdmin(session) && !isOwner && !isCollab) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const body = await request.json();
   const published = body?.published;
@@ -30,8 +43,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         })
         .filter((item: { email: string }) => item.email)
     : null;
-
-  await initDb();
 
   if (typeof published === "boolean") {
     await query(`UPDATE notes SET published = $1, updated_at = NOW() WHERE id = $2`, [published, noteId]);

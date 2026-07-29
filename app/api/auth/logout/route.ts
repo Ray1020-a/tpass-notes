@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const response = NextResponse.redirect(process.env.AUTH_LOGOUT_URL || "https://portal.tschoolsu.org/", 303);
+  const response = NextResponse.redirect("https://portal.tschoolsu.org/", 303);
   response.cookies.set("tpass_token", "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: process.env.SERVICE_SELF_URL?.startsWith("https://") ?? false,
     path: "/",
     maxAge: 0,
   });

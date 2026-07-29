@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface NoteRow {
@@ -14,6 +14,22 @@ interface NoteRow {
   published: boolean;
   content_type: string;
   tags: string;
+  latest_content?: string;
+  file_path?: string;
+  file_size?: number;
+}
+
+interface VersionItem {
+  id?: number;
+  version_number: number;
+  content?: string;
+  file_path?: string;
+  file_size?: number;
+  mime_type?: string;
+  created_at: string;
+  created_by_name: string;
+  created_by_email: string;
+  created_by_sub?: string;
 }
 
 interface PanelClientProps {
@@ -40,6 +56,16 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState("markdown");
   const [newTags, setNewTags] = useState<string[]>([]);
+  const [detailNoteId, setDetailNoteId] = useState<number | null>(null);
+  const [detailNote, setDetailNote] = useState<NoteRow | null>(null);
+  const [detailTags, setDetailTags] = useState<string[]>([]);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailNewCollab, setDetailNewCollab] = useState("");
+  const [detailNewCollabName, setDetailNewCollabName] = useState("");
+  const [detailCollaborators, setDetailCollaborators] = useState<{ email: string; name: string }[]>([]);
+  const [detailVersions, setDetailVersions] = useState<VersionItem[]>([]);
+  const [feedback, setFeedback] = useState("");
+  const [sessionEmail, setSessionEmail] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -68,7 +94,11 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
       setCreating(false);
       setTitle("");
       setNewTags([]);
-      window.location.href = `/editor?id=${data.id}`;
+      if (contentType === "pdf") {
+        window.location.href = `/editor?id=${data.id}`;
+      } else {
+        window.location.href = `/editor?id=${data.id}`;
+      }
     }
   };
 
@@ -81,6 +111,92 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     }
   };
 
+  const openDetail = async (note: NoteRow) => {
+    setDetailNoteId(note.id);
+    setDetailNote(note);
+    setDetailTitle(note.title);
+    setDetailTags(note.tags ? note.tags.split(",").filter(Boolean) : []);
+    setFeedback("");
+    const res = await fetch(`/api/notes/save?id=${note.id}`);
+    const data = await res.json();
+    setDetailCollaborators(data.collaborators || []);
+    setDetailVersions(data.versions || []);
+    setSessionEmail(data.sessionEmail || "");
+  };
+
+  const saveDetail = async () => {
+    if (!detailNoteId) return;
+    const res = await fetch(`/api/notes/${detailNoteId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: detailTitle }),
+    });
+    if (res.ok) {
+      setFeedback("標題已更新");
+      setNotes((prev) => prev.map((n) => n.id === detailNoteId ? { ...n, title: detailTitle } : n));
+    }
+  };
+
+  const saveDetailTags = async (tagName: string) => {
+    if (!detailNoteId) return;
+    const next = detailTags.includes(tagName)
+      ? detailTags.filter((t) => t !== tagName)
+      : [...detailTags, tagName];
+    setDetailTags(next);
+    setFeedback(next.includes(tagName) ? "標籤已新增" : "標籤已移除");
+    const res = await fetch(`/api/notes/tags`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ noteId: detailNoteId, tags: next }),
+    });
+    if (!res.ok) setFeedback("標籤更新失敗");
+  };
+
+  const addDetailCollaborator = async () => {
+    if (!detailNoteId || !detailNewCollab.trim()) return;
+    const next = [...detailCollaborators, { email: detailNewCollab.trim(), name: detailNewCollabName.trim() || detailNewCollab.trim() }];
+    const res = await fetch(`/api/notes/${detailNoteId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ collaborators: next }),
+    });
+    if (res.ok) {
+      setDetailCollaborators(next);
+      setDetailNewCollab("");
+      setDetailNewCollabName("");
+      setFeedback("協作者已新增");
+    }
+  };
+
+  const deleteDetailVersion = async (versionNumber: number) => {
+    if (!detailNoteId) return;
+    if (!window.confirm(`確定要刪除版本 ${versionNumber} 嗎？`)) return;
+    const res = await fetch(`/api/notes/save`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: detailNoteId, versionNumber }),
+    });
+    if (res.ok) {
+      setDetailVersions((prev) => prev.filter((v) => v.version_number !== versionNumber));
+      setFeedback(`已刪除版本 ${versionNumber}`);
+    } else {
+      const data = await res.json();
+      setFeedback(data.error || "刪除失敗");
+    }
+  };
+
+  const getWordCount = (content?: string) => {
+    if (!content) return 0;
+    return content.replace(/\s/g, "").length;
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return "0 B";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-4">
@@ -90,37 +206,37 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
           ["您上架的筆記", stats.publishedByYou],
           ["您下架的筆記", stats.unpublishedByYou],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.05_150)] p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[oklch(0.45_0.13_150)]">{label}</p>
-            <p className="mt-3 text-3xl font-extrabold">{value}</p>
+          <div key={label as string} className="rounded-2xl border-2 border-foreground bg-primary/10 p-4 shadow-[4px_4px_0_0_var(--color-foreground)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">{(label as string)}</p>
+            <p className="mt-3 text-3xl font-extrabold">{value as number}</p>
           </div>
         ))}
       </section>
-      <section className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
+      <section className="rounded-2xl border-2 border-foreground bg-accent/10 p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-2xl font-extrabold">管理面板</h1>
-            <p className="mt-1 text-sm text-[oklch(0.5_0.012_264)]">{isAdmin ? "您是最高管理員，可管理所有筆記。" : "您可編輯與管理自己的筆記。"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{isAdmin ? "您是最高管理員，可管理所有筆記。" : "您可編輯與管理自己的筆記。"}</p>
           </div>
           <div className="flex flex-col gap-3 md:flex-row">
-            <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="搜尋標題或作者" className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]" />
-            <select multiple value={selectedTags} onChange={(event) => setSelectedTags(Array.from(event.target.selectedOptions, (option) => option.value))} className="min-h-10 rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]">
+            <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="搜尋標題或作者" className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]" />
+            <select multiple value={selectedTags} onChange={(event) => setSelectedTags(Array.from(event.target.selectedOptions, (option) => option.value))} className="min-h-10 rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]">
               {tags.map((tag) => (
                 <option key={tag} value={tag}>{tag}</option>
               ))}
             </select>
-            <button onClick={() => setCreating(true)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-4 py-2 font-semibold text-[oklch(0.99_0_0)] shadow-[3px_3px_0_0_var(--color-foreground)]">
+            <button onClick={() => setCreating(true)} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
               新增筆記
             </button>
           </div>
         </div>
       </section>
       {creating ? (
-        <div className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
+        <div className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
           <h2 className="text-xl font-extrabold">新增筆記</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="筆記標題" className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2" />
-            <select value={contentType} onChange={(event) => setContentType(event.target.value)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] px-3 py-2">
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="筆記標題" className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]" />
+            <select value={contentType} onChange={(event) => setContentType(event.target.value)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 shadow-[3px_3px_0_0_var(--color-foreground)]">
               <option value="markdown">MarkDown</option>
               <option value="pdf">PDF</option>
             </select>
@@ -129,40 +245,46 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             <label className="text-sm font-semibold">標籤</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {tags.map((tag) => (
-                <button key={tag} onClick={() => setNewTags((prev) => prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag])} className={`rounded-full border-2 px-3 py-1 text-sm ${newTags.includes(tag) ? "bg-[oklch(0.62_0.16_150)] text-[oklch(0.99_0_0)]" : "bg-[oklch(1_0_0)]"}`}>
+                <button key={tag} onClick={() => setNewTags((prev) => prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag])} className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${newTags.includes(tag) ? "bg-primary text-background" : "bg-card"}`}>
                   {tag}
                 </button>
               ))}
             </div>
           </div>
           <div className="mt-4 flex gap-2">
-            <button onClick={createNote} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-4 py-2 font-semibold text-[oklch(0.99_0_0)]">建立</button>
-            <button onClick={() => setCreating(false)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] px-4 py-2 font-semibold">取消</button>
+            <button onClick={createNote} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)]">建立</button>
+            <button onClick={() => setCreating(false)} className="rounded-xl border-2 border-foreground bg-accent/10 px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">取消</button>
           </div>
         </div>
       ) : null}
       <section className="grid gap-4">
         {notes.map((note) => (
-          <article key={note.id} className="rounded-2xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(1_0_0)] p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
+          <article key={note.id} className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
+              <button onClick={() => openDetail(note)} className="flex-1 text-left">
                 <div className="flex flex-wrap gap-2">
                   {note.tags ? note.tags.split(",").filter(Boolean).map((tag: string) => (
-                    <span key={tag} className="rounded-md border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.005_250)] px-2 py-0.5 font-mono text-[11px] font-bold">{tag}</span>
+                    <span key={tag} className="rounded-md border-2 border-foreground bg-muted px-2 py-0.5 font-mono text-[11px] font-bold">{tag}</span>
                   )) : null}
                 </div>
                 <h2 className="mt-3 text-xl font-extrabold">{note.title}</h2>
-                <p className="mt-2 text-sm text-[oklch(0.5_0.012_264)]">建立：{new Date(note.created_at).toLocaleString("zh-TW")} · 更新：{new Date(note.updated_at).toLocaleString("zh-TW")}</p>
-                {isAdmin ? <p className="mt-1 text-sm text-[oklch(0.5_0.012_264)]">擁有者：{note.owner_name}</p> : null}
-              </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {note.content_type === "pdf"
+                    ? `檔案大小：${formatFileSize(note.file_size)}`
+                    : `字數：${getWordCount(note.latest_content)}`
+                  }
+                  {isAdmin ? ` · 擁有者：${note.owner_name}` : ""}
+                  <span className="ml-2">更新：{new Date(note.updated_at).toLocaleString("zh-TW")}</span>
+                </p>
+              </button>
               <div className="flex items-center gap-2">
-                <Link href={`/read?id=${note.id}`} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.04_250)] px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+                <Link href={`/read?id=${note.id}`} className="rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
                   閱讀
                 </Link>
-                <Link href={`/editor?id=${note.id}`} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.62_0.16_150)] px-3 py-2 font-semibold text-[oklch(0.99_0_0)] shadow-[3px_3px_0_0_var(--color-foreground)]">
+                <Link href={`/editor?id=${note.id}`} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
                   編輯
                 </Link>
-                <button onClick={() => togglePublish(note.id, note.published)} className="rounded-xl border-2 border-[oklch(0.21_0.01_264)] bg-[oklch(0.96_0.05_60)] px-3 py-2 font-semibold">
+                <button onClick={() => togglePublish(note.id, note.published)} className={`rounded-xl border-2 border-foreground px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] ${note.published ? "bg-secondary" : "bg-destructive text-background"}`}>
                   {note.published ? "下架" : "上架"}
                 </button>
               </div>
@@ -170,6 +292,79 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
           </article>
         ))}
       </section>
+
+      {detailNoteId && detailNote ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setDetailNoteId(null)}>
+          <div className="w-full max-w-lg space-y-4 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+            <h2 className="text-xl font-extrabold">筆記詳情</h2>
+            {feedback ? <p className="text-sm text-muted-foreground">{feedback}</p> : null}
+
+            <div>
+              <label className="text-sm font-semibold">標題</label>
+              <div className="mt-1 flex gap-2">
+                <input value={detailTitle} onChange={(event) => setDetailTitle(event.target.value)} className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2" />
+                <button onClick={saveDetail} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">儲存</button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">類型</label>
+              <p className="mt-1 text-sm text-muted-foreground">{detailNote.content_type === "pdf" ? "PDF" : "MarkDown"}</p>
+              <div className="mt-2 flex gap-2">
+                <Link href={`/editor?id=${detailNote.id}`} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">
+                  {detailNote.content_type === "pdf" ? "上傳新版本" : "進入編輯器"}
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">標籤</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <button key={tag} onClick={() => saveDetailTags(tag)} className={`rounded-full border-2 border-foreground px-3 py-1 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${detailTags.includes(tag) ? "bg-primary text-background" : "bg-card"}`}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">協作者</label>
+              <div className="mt-1 flex gap-2">
+                <input value={detailNewCollabName} onChange={(event) => setDetailNewCollabName(event.target.value)} placeholder="姓名" className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm" />
+                <input value={detailNewCollab} onChange={(event) => setDetailNewCollab(event.target.value)} placeholder="email" className="flex-1 rounded-xl border-2 border-foreground bg-card px-3 py-2 text-sm" />
+                <button onClick={addDetailCollaborator} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 text-sm font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">新增</button>
+              </div>
+              <ul className="mt-2 space-y-1">
+                {detailCollaborators.map((c) => (
+                  <li key={c.email} className="rounded-lg border-2 border-foreground bg-muted px-3 py-1 text-sm">
+                    {c.name || c.email} <span className="text-muted-foreground">({c.email})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold">版本選擇</label>
+              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+                {detailVersions.map((v) => (
+                  <li key={v.version_number} className="flex items-center justify-between rounded-lg border-2 border-foreground bg-muted px-3 py-2 text-sm">
+                    <div>
+                      <span className="font-bold">版本 {v.version_number}</span>
+                      <div className="text-muted-foreground">{v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}</div>
+                    </div>
+                    <button onClick={() => deleteDetailVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-destructive px-2 py-1 text-xs font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">
+                      刪除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <button onClick={() => setDetailNoteId(null)} className="w-full rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">關閉</button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
