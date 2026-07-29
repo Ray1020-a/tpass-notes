@@ -6,10 +6,6 @@ import { initDb, query } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-function isValidPdf(buffer: Buffer): boolean {
-  return buffer.slice(0, 5).toString() === "%PDF-";
-}
-
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "forbidden" }, { status: 401 });
@@ -23,14 +19,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "檔案過大，限制 20 MB" }, { status: 413 });
   }
 
-  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "僅接受 PDF 檔案" }, { status: 400 });
-  }
-
-  const bytes = Buffer.from(await file.arrayBuffer());
-
-  if (!isValidPdf(bytes)) {
-    return NextResponse.json({ error: "無效的 PDF 檔案" }, { status: 400 });
   }
 
   await initDb();
@@ -55,6 +45,7 @@ export async function POST(request: Request) {
   const safeName = `${Date.now()}-${safeNameBase}.pdf`;
   const destDir = path.join(process.cwd(), "uploads");
   const destPath = path.join(destDir, safeName);
+  const bytes = Buffer.from(await file.arrayBuffer());
 
   await writeFile(destPath, bytes);
 
