@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { writeFile, readFile } from "fs/promises";
+import { writeFile, unlink } from "fs/promises";
 import path from "path";
-import { getSession } from "@/lib/auth";
+import { getSession, isAdmin, isModerator } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -9,8 +9,6 @@ export const runtime = "nodejs";
 function isValidPdf(buffer: Buffer): boolean {
   return buffer.slice(0, 5).toString() === "%PDF-";
 }
-
-const SAFE_NAME_RE = /^[a-zA-Z0-9._-]+$/;
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -22,7 +20,7 @@ export async function POST(request: Request) {
   if (!file || !Number.isInteger(noteId)) return NextResponse.json({ error: "invalid upload" }, { status: 400 });
 
   if (file.size > 20 * 1024 * 1024) {
-    return NextResponse.json({ error: "檔案過大，限制 20MB" }, { status: 413 });
+    return NextResponse.json({ error: "檔案過大，限制 20 MB" }, { status: 413 });
   }
 
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
@@ -35,6 +33,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "無效的 PDF 檔案" }, { status: 400 });
   }
 
+  await initDb();
+
+  const noteResult = await query<{ owner_email: string; owner_sub: string; published: boolean }>(
+    `SELECT owner_email, owner_sub, published FROM notes WHERE id = $1`, [noteId]
+  );
+  if (noteResult.rows.length === 0) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  const note = noteResult.rows[0];
+  const isOwner = session.sub === note.owner_sub || session.email === note.owner_email;
+  const collabRes = await query<{ email: string }>(
+    `SELECT email FROM note_collaborators WHERE note_id = $1 AND email = $2`, [noteId, session.email]
+  );
+  const isCollab = collabRes.rows.length > 0;
+
+  if (!isAdmin(session) && !isModerator(session) && !isOwner && !isCollab) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
   const safeNameBase = path.parse(file.name).name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
   const safeName = `${Date.now()}-${safeNameBase}.pdf`;
   const destDir = path.join(process.cwd(), "public", "uploads");
@@ -42,16 +58,22 @@ export async function POST(request: Request) {
 
   await writeFile(destPath, bytes);
 
-  await initDb();
-  const versionResult = await query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM note_versions WHERE note_id = $1`, [noteId]);
-  const version = versionResult.rows[0].count + 1;
+  try {
+    const versionResult = await query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM note_versions WHERE note_id = $1`, [noteId]
+    );
+    const version = versionResult.rows[0].count + 1;
 
-  await query(`
-    INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name, created_by_sub)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-  `, [noteId, version, `/uploads/${safeName}`, file.size, "application/pdf", session.email, session.name, session.sub]);
+    await query(`
+      INSERT INTO note_versions (note_id, version_number, file_path, file_size, mime_type, created_by_email, created_by_name, created_by_sub)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [noteId, version, `/uploads/${safeName}`, file.size, "application/pdf", session.email, session.name, session.sub]);
 
-  await query(`UPDATE notes SET content_type = 'pdf', updated_at = NOW() WHERE id = $1`, [noteId]);
+    await query(`UPDATE notes SET content_type = 'pdf', updated_at = NOW() WHERE id = $1`, [noteId]);
 
-  return NextResponse.json({ ok: true, path: `/uploads/${safeName}` });
+    return NextResponse.json({ ok: true, path: `/uploads/${safeName}` });
+  } catch {
+    try { await unlink(destPath); } catch {}
+    return NextResponse.json({ error: "upload failed" }, { status: 500 });
+  }
 }

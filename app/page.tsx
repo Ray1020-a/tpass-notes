@@ -60,13 +60,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
       <section className="grid gap-4">
         {notes.length === 0 ? (
           <div className="rounded-2xl border-2 border-foreground bg-card p-8 shadow-[4px_4px_0_0_var(--color-foreground)]">
-            <p className="font-semibold text-muted-foreground">沒有符合條件的筆記。</p>
+            <p className="font-bold text-muted-foreground">沒有符合條件的筆記。</p>
           </div>
         ) : (
           notes.map((note: NoteRow) => (
             <article
               key={note.id}
-              className="group rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]"
+              className="group rounded-2xl border-2 border-foreground bg-card p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--color-foreground)]"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="flex-1">

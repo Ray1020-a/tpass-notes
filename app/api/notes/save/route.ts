@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { unlink } from "fs/promises";
+import path from "path";
 import { getSession, isAdmin, isModerator } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
@@ -39,7 +41,7 @@ async function getNoteWithCheck(id: number) {
 function canEdit(session: Awaited<ReturnType<typeof getSession>>, note: { owner_email: string; owner_sub: string }, collaborators: string[]) {
   if (!session) return false;
   if (isAdmin(session)) return true;
-  if (!isModerator(session)) return false;
+  if (isModerator(session)) return true;
   const isOwner = session.sub === note.owner_sub || session.email === note.owner_email;
   const isCollab = collaborators.includes(session.email);
   return isOwner || isCollab;
@@ -195,6 +197,12 @@ export async function DELETE(request: Request) {
     }
   } else {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  if (version.file_path) {
+    const safePath = version.file_path.replace(/^\/+/, "");
+    const absPath = path.join(process.cwd(), "public", safePath);
+    try { await unlink(absPath); } catch {}
   }
 
   await query(`DELETE FROM note_versions WHERE note_id = $1 AND version_number = $2`, [id, versionNumber]);

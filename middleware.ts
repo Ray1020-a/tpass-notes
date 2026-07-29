@@ -2,18 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const response = NextResponse.next();
 
-  if (pathname.startsWith("/uploads/")) {
-    const token = request.cookies.get("tpass_token")?.value;
-    if (!token) {
-      return new NextResponse(null, { status: 404 });
-    }
-  }
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
-  return NextResponse.next();
+  return response;
 }
-
-export const config = {
-  matcher: "/uploads/:path*",
-};

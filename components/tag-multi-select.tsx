@@ -26,7 +26,7 @@ export function TagMultiSelect({ tags, selected, onChange, placeholder = "選擇
     onChange(next);
   };
 
-  const label = selected.length > 0 ? `標籤 (${selected.length})` : placeholder;
+  const label = selected.length > 0 ? `標籤（${selected.length}）` : placeholder;
 
   return (
     <div ref={ref} className="relative">

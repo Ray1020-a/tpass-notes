@@ -21,7 +21,8 @@ export async function POST(request: Request) {
 
   const note = noteResult.rows[0];
   const isOwner = session.sub === note.owner_sub || session.email === note.owner_email;
-  if (!isModerator(session) || !isOwner) {
+
+  if (!isModerator(session) && !isOwner) {
     const collabRes = await query<{ email: string }>(
       `SELECT email FROM note_collaborators WHERE note_id = $1 AND email = $2`, [noteId, session.email]
     );

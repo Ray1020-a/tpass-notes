@@ -93,7 +93,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   );
 
   for (const row of filePaths.rows) {
-    const absPath = path.join(process.cwd(), "public", row.file_path);
+    const safePath = row.file_path.replace(/^\/+/, "");
+    const absPath = path.join(process.cwd(), "public", safePath);
     try { await unlink(absPath); } catch {}
   }
 

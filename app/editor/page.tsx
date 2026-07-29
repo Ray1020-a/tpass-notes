@@ -100,9 +100,9 @@ export default function EditorPage() {
   }, [content, contentType, id, published, title, sessionEmail, sessionSub]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => { if (id) void saveContent(true); }, 60000);
+    const interval = window.setInterval(() => { if (id && dirty) void saveContent(true); }, 60000);
     return () => window.clearInterval(interval);
-  }, [id, saveContent]);
+  }, [id, saveContent, dirty]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -188,8 +188,8 @@ export default function EditorPage() {
     return (
       <div className="rounded-2xl border-2 border-foreground bg-destructive/10 p-8 shadow-[4px_4px_0_0_var(--color-foreground)]">
         <h1 className="text-2xl font-extrabold">權限不足</h1>
-        <p className="mt-3">您沒有編輯此筆記的權限。</p>
-        <button onClick={() => router.push("/panel")} className="mt-6 rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">返回面板</button>
+        <p className="mt-3">你沒有編輯此筆記的權限。</p>
+        <button onClick={() => router.push("/panel")} className="mt-6 rounded-xl border-2 border-foreground bg-card px-4 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)]">返回面板</button>
       </div>
     );
   }
@@ -198,13 +198,13 @@ export default function EditorPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-foreground bg-accent/10 p-5 shadow-[4px_4px_0_0_var(--color-foreground)]">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">協作編輯器</p>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-accent">協作編輯器</p>
           <h1 className="text-2xl font-extrabold">{title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">← 返回面板</button>
-          <button onClick={() => setShowVersions(true)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">疊代</button>
-          <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+          <button onClick={() => router.push("/panel")} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]">← 返回面板</button>
+          <button onClick={() => setShowVersions(true)} className="rounded-xl border-2 border-foreground bg-card px-3 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]">疊代</button>
+          <button onClick={() => void saveContent(false)} className="rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)] active:translate-y-0 active:shadow-[2px_2px_0_0_var(--color-foreground)]">
             {saving ? "儲存中…" : "儲存"}
           </button>
           <span className={`rounded-xl border-2 px-3 py-2 font-mono text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)] ${dirty ? "bg-destructive text-background border-foreground" : "bg-primary text-background border-foreground"}`}>
@@ -215,7 +215,7 @@ export default function EditorPage() {
 
       {showTypeSwitch ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => { setShowTypeSwitch(false); setPendingType(null); }}>
-          <div className="w-full max-w-md rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl border-2 border-foreground bg-card p-6 shadow-[4px_4px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-xl font-extrabold">切換筆記類型</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {pendingType === "pdf"
@@ -236,7 +236,7 @@ export default function EditorPage() {
 
       {showVersions ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setShowVersions(false)}>
-          <div className="w-full max-w-lg rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-lg rounded-2xl border-2 border-foreground bg-card p-6 shadow-[4px_4px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-xl font-extrabold">版本疊代</h2>
             <p className="mt-1 text-sm text-muted-foreground">選擇要回復的版本，或刪除不需要的版本。</p>
             <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
@@ -248,9 +248,9 @@ export default function EditorPage() {
                       <span className="font-bold">版本 {v.version_number}</span>
                     </button>
                     <div className="flex gap-1">
-                      <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-semibold shadow-[2px_2px_0_0_var(--color-foreground)]">回復</button>
+                      <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)]">回復</button>
                       {canDeleteVersion(v) ? (
-                        <button onClick={() => void deleteVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-destructive px-2 py-1 text-xs font-semibold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">刪除</button>
+                        <button onClick={() => void deleteVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-destructive px-2 py-1 text-xs font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">刪除</button>
                       ) : null}
                     </div>
                   </div>
@@ -259,8 +259,8 @@ export default function EditorPage() {
               ))}
             </ul>
             <div className="mt-4 flex gap-2">
-              <button onClick={() => { setShowVersions(false); setSelectedVersion(null); }} className="rounded-xl border-2 border-foreground bg-card px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">取消</button>
-              <button onClick={() => { if (selectedVersion) void restoreVersion(selectedVersion); }} disabled={!selectedVersion} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] disabled:opacity-40">回復到此版本</button>
+              <button onClick={() => { setShowVersions(false); setSelectedVersion(null); }} className="rounded-xl border-2 border-foreground bg-card px-4 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)]">取消</button>
+              <button onClick={() => { if (selectedVersion) void restoreVersion(selectedVersion); }} disabled={!selectedVersion} className="rounded-xl border-2 border-foreground bg-primary px-4 py-2 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] disabled:opacity-40">回復到此版本</button>
             </div>
           </div>
         </div>
@@ -305,14 +305,14 @@ export default function EditorPage() {
                       </button>
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground font-semibold">
+                  <span className="text-xs text-muted-foreground font-bold">
                     # 標題 · **粗體** · `程式碼`
                   </span>
                 </div>
               )}
               {isMobile ? (
                 <div className="rounded-xl border-2 border-foreground bg-accent/10 p-5 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">手機版不支援 Markdown 直接編輯</p>
+                  <p className="font-bold text-foreground">手機版不支援 Markdown 直接編輯</p>
                   <p className="mt-2">請使用平板或電腦開啟此頁面來撰寫與編輯筆記。</p>
                 </div>
               ) : mode === "preview" ? (
@@ -351,8 +351,8 @@ export default function EditorPage() {
             </h2>
             <form onSubmit={uploadPdf} className="mt-3 space-y-3">
               <input type="file" accept="application/pdf" onChange={(event) => setPdfFile(event.target.files?.[0] || null)} className="w-full rounded-xl border-2 border-foreground p-2" />
-              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-semibold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
-                {uploading ? "上傳中…" : "上傳 PDF（20MB 限制）"}
+              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-primary px-3 py-2 font-bold text-background shadow-[3px_3px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--color-foreground)]">
+                {uploading ? "上傳中…" : "上傳 PDF （20 MB 限制）"}
               </button>
             </form>
             {contentType === "markdown" ? (
@@ -364,7 +364,7 @@ export default function EditorPage() {
             <h2 className="text-lg font-extrabold">協作者</h2>
             <form onSubmit={addCollaborator} className="mt-3 space-y-2">
               <input value={newCollaborator} onChange={(event) => setNewCollaborator(event.target.value)} placeholder="email" className="w-full rounded-xl border-2 border-foreground px-3 py-2" />
-              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">新增協作者</button>
+              <button type="submit" className="w-full rounded-xl border-2 border-foreground bg-accent/10 px-3 py-2 font-bold shadow-[3px_3px_0_0_var(--color-foreground)]">新增協作者</button>
             </form>
             <ul className="mt-3 space-y-2">
               {collaborators.map((c) => (
@@ -398,14 +398,14 @@ export default function EditorPage() {
                 <li key={v.version_number} className="rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span>版本 {v.version_number}</span>
-                    <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-semibold shadow-[2px_2px_0_0_var(--color-foreground)]">回復</button>
+                    <button onClick={() => void restoreVersion(v.version_number)} className="rounded-lg border-2 border-foreground bg-card px-2 py-1 text-xs font-bold shadow-[2px_2px_0_0_var(--color-foreground)]">回復</button>
                   </div>
                   <div className="mt-1 text-muted-foreground">{v.created_by_name} · {new Date(v.created_at).toLocaleString("zh-TW")}</div>
                 </li>
               ))}
             </ul>
             {versions.length > 5 ? (
-              <button onClick={() => setShowVersions(true)} className="mt-2 w-full rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm font-semibold shadow-[3px_3px_0_0_var(--color-foreground)]">
+              <button onClick={() => setShowVersions(true)} className="mt-2 w-full rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm font-bold shadow-[3px_3px_0_0_var(--color-foreground)]">
                 查看全部 {versions.length} 個版本 →
               </button>
             ) : null}

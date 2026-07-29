@@ -43,8 +43,7 @@ next-env.d.ts
 
 
 # other
-auth.md
-style.md
+specification/
 
 # logs
 logs/

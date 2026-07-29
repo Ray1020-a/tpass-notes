@@ -27,10 +27,10 @@ export function HomeFilter({ allTags, initialQ, initialTags, permissionRole }: H
     <section className="rounded-2xl border-2 border-foreground bg-accent/10 p-6 shadow-[4px_4px_0_0_var(--color-foreground)]">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-accent">共編筆記</p>
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-accent">共編筆記</p>
           <h1 className="mt-2 text-3xl font-extrabold">已上架筆記瀏覽</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {permissionRole === "default" ? "您可瀏覽已發布的筆記。" : "可查看公開筆記與管理狀態。"}
+            {permissionRole === "default" ? "你可瀏覽已發布的筆記。" : "可查看公開筆記與管理狀態。"}
           </p>
         </div>
         <div className="flex flex-col gap-3 md:flex-row md:items-end">

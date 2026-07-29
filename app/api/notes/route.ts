@@ -81,8 +81,8 @@ export async function POST(request: Request) {
 
   await initDb();
   const noteResult = await query<InsertNoteRow>(
-    `INSERT INTO notes (title, content_type, owner_email, owner_name, published, latest_content) VALUES ($1, $2, $3, $4, true, '') RETURNING id`,
-    [title, contentType, session.email, session.name]
+    `INSERT INTO notes (title, content_type, owner_email, owner_name, owner_sub, published, latest_content) VALUES ($1, $2, $3, $4, $5, true, '') RETURNING id`,
+    [title, contentType, session.email, session.name, session.sub]
   );
   const noteId = noteResult.rows[0].id;
 

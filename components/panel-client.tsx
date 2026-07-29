@@ -246,15 +246,15 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
       <section className="grid gap-4 md:grid-cols-4">
         {[
           ["總上架筆記", stats.total],
-          ["您的筆記", stats.yourNotes],
-          ["您上架的筆記", stats.publishedByYou],
-          ["您下架的筆記", stats.unpublishedByYou],
+          ["你的筆記", stats.yourNotes],
+          ["你上架的筆記", stats.publishedByYou],
+          ["你下架的筆記", stats.unpublishedByYou],
         ].map(([label, value]) => (
           <div
             key={label as string}
             className="rounded-2xl border-2 border-foreground bg-primary/10 p-5 shadow-[4px_4px_0_0_var(--color-foreground)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_0_var(--color-foreground)]"
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">{label as string}</p>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">{label as string}</p>
             <p className="mt-2 text-3xl font-extrabold">{value as number}</p>
           </div>
         ))}
@@ -265,7 +265,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
           <div>
             <h1 className="text-2xl font-extrabold">管理面板</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isAdmin ? "您是最高管理員，可管理所有筆記。" : "您可編輯與管理自己的筆記。"}
+              {isAdmin ? "你是最高管理員，可管理所有筆記。" : "你可編輯與管理自己的筆記。"}
             </p>
           </div>
           <div className="flex flex-col gap-3 md:flex-row">
@@ -308,12 +308,12 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
               onChange={(event) => setContentType(event.target.value)}
               className="rounded-xl border-2 border-foreground bg-card px-4 py-2.5 shadow-[3px_3px_0_0_var(--color-foreground)]"
             >
-              <option value="markdown">MarkDown</option>
+              <option value="markdown">Markdown</option>
               <option value="pdf">PDF</option>
             </select>
           </div>
           <div className="mt-3">
-            <label className="text-sm font-semibold">標籤</label>
+            <label className="text-sm font-bold">標籤</label>
             <div className="mt-2">
               <TagMultiSelect tags={tags} selected={newTags} onChange={setNewTags} placeholder="選擇標籤" />
             </div>
@@ -402,7 +402,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
           onClick={() => setDetailNoteId(null)}
         >
           <div
-            className="w-full max-w-lg space-y-5 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]"
+            className="w-full max-w-lg space-y-5 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[4px_4px_0_0_var(--color-foreground)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -416,7 +416,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             ) : null}
 
             <div>
-              <label className="text-sm font-semibold">標題</label>
+              <label className="text-sm font-bold">標題</label>
               <div className="mt-1 flex gap-2">
                 <input
                   value={detailTitle}
@@ -433,14 +433,14 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             </div>
 
             <div>
-              <label className="text-sm font-semibold">標籤</label>
+              <label className="text-sm font-bold">標籤</label>
               <div className="mt-2">
                 <TagMultiSelect tags={tags} selected={detailTags} onChange={updateDetailTags} />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold">編輯</label>
+              <label className="text-sm font-bold">編輯</label>
               <div className="mt-2">
                 <Link
                   href={`/editor?id=${detailNote.id}`}
@@ -453,7 +453,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             </div>
 
             <div>
-              <label className="text-sm font-semibold">協作者</label>
+              <label className="text-sm font-bold">協作者</label>
               <div className="mt-1 flex gap-2">
                 <input
                   value={detailNewCollab}
@@ -477,7 +477,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
                       className="flex items-center justify-between rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm"
                     >
                       <span>
-                        <span className="font-semibold">{c.name || c.email}</span>
+                        <span className="font-bold">{c.name || c.email}</span>
                         <span className="ml-1 text-muted-foreground">({c.email})</span>
                       </span>
                     </li>
@@ -489,7 +489,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
             </div>
 
             <div>
-              <label className="text-sm font-semibold">版本歷史</label>
+              <label className="text-sm font-bold">版本歷史</label>
               {detailVersions.length > 0 ? (
                 <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
                   {detailVersions.map((v) => (
@@ -529,7 +529,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
 
       {showTagManager ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4" onClick={() => setShowTagManager(false)}>
-          <div className="w-full max-w-md space-y-4 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[6px_6px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md space-y-4 rounded-2xl border-2 border-foreground bg-card p-6 shadow-[4px_4px_0_0_var(--color-foreground)]" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-xl font-extrabold">管理標籤</h2>
             {feedback ? <p className="rounded-lg border-2 border-foreground bg-accent/10 px-3 py-2 text-sm font-medium text-muted-foreground">{feedback}</p> : null}
             <div className="flex gap-2">
@@ -548,7 +548,7 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
               ) : (
                 tags.map((tag) => (
                   <li key={tag} className="flex items-center justify-between rounded-xl border-2 border-foreground bg-muted px-3 py-2 text-sm">
-                    <span className="font-semibold">{tag}</span>
+                    <span className="font-bold">{tag}</span>
                     <button onClick={() => deleteTag(tag)} className="rounded-lg border-2 border-foreground bg-destructive px-2.5 py-1 text-xs font-bold text-background shadow-[2px_2px_0_0_var(--color-foreground)]">刪除</button>
                   </li>
                 ))

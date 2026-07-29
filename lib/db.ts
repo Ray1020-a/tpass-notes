@@ -8,7 +8,7 @@ interface DbQueryResult<T> {
 }
 
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || "postgresql://postgres:postgres@127.0.0.1:5432/t_notes",
+  connectionString: process.env.POSTGRES_URL || "postgresql://t_notes:password@127.0.0.1:5432/t_notes",
 });
 
 pool.on("connect", (client) => {
@@ -31,14 +31,6 @@ export async function initDb() {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS note_tags (
-      note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      PRIMARY KEY (note_id, tag_id)
-    );
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS notes (
       id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
@@ -52,6 +44,14 @@ export async function initDb() {
       latest_content TEXT DEFAULT ''
     );
     ALTER TABLE notes ADD COLUMN IF NOT EXISTS owner_sub TEXT DEFAULT '';
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS note_tags (
+      note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+      tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (note_id, tag_id)
+    );
   `);
 
   await pool.query(`
@@ -81,8 +81,6 @@ export async function initDb() {
       PRIMARY KEY (note_id, email)
     );
   `);
-
-
 }
 
 export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]) {
