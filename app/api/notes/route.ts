@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   const filtered = result.rows.filter((note: NoteRow) => {
     const noteTags = note.tags ? note.tags.split(",") : [];
     const matchesQuery = !q || `${note.title} ${note.owner_name}`.toLowerCase().includes(q.toLowerCase());
-    const matchesTags = selectedTags.length === 0 || selectedTags.some((tag) => noteTags.includes(tag));
+    const matchesTags = selectedTags.length === 0 || selectedTags.every((tag) => noteTags.includes(tag));
     return matchesQuery && matchesTags;
   });
 
