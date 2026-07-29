@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, isAdmin, isModerator } from "@/lib/auth";
+import { getSession, isAdmin } from "@/lib/auth";
 import { initDb, query } from "@/lib/db";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
