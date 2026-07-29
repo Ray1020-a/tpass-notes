@@ -11,6 +11,10 @@ const pool = new Pool({
   connectionString: process.env.POSTGRES_URL || "postgresql://postgres:postgres@127.0.0.1:5432/t_notes",
 });
 
+pool.on("connect", (client) => {
+  client.query("SET timezone TO 'Asia/Taipei'");
+});
+
 let initialized = false;
 
 export async function initDb() {
