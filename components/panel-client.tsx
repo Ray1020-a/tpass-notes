@@ -174,8 +174,6 @@ export function PanelClient({ initialNotes, initialTags, initialStats, isAdmin }
     });
     if (res.ok) {
       setDetailCollaborators(next);
-      setDetailNewCollab("");
-      setDetailNewCollabName("");
       setFeedback("協作者已新增");
     }
   };
